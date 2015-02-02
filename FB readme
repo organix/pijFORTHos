@@ -1,0 +1,19 @@
+Frame Buffer Readme
+This is a work in progress
+words added:
+SETFB
+SHOW (y,x,ch - )
+
+Variables added
+SCREENX
+SCREENY
+SCREENDEPTH
+FG_COLOUR
+BG_COLOUR
+
+SETFB reads the values in the SCREENX,SCREENY,SCREENDEPTH (defaults = 1024,768,16)
+and initialise the frame buffer - via a call to the GPU
+
+SHOW takes 3 values from the stack, the location on the screen to write to in char from top left and the char to write
+
+10 10 42 SHOW should put a star on the screen in the default white on blue
