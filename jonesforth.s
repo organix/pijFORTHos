@@ -217,6 +217,16 @@ var_\name :
         defvar "S0",2,,S0
 @  BASE            The current base for printing and reading numbers.
         defvar "BASE",4,,BASE,10
+@  SCREENX			The width of the screen in pixels
+		defvar "SCREENX",7,,SCREENX,1024
+@  SCREENY			The height of the screen in pixels
+		defvar "SCREENY",7,,SCREENY,768
+@  SCREENDEPTH		The depth of the screen in bits / pixel
+		defvar "SCREENDEPTH",11,,SCREENDEPTH,16
+@  FG_COLOUR		The foreground colour to use for char on screen
+		defvar "FG_COLOUR",9,,FG_COLOUR,65535
+@  BG_COLOUR		The background colour on screen
+		defvar "BG_COLOUR",9,,BG_COLOUR,15
 
 
 @ defconst macro helps defining FORTH constants in assembly
@@ -748,6 +758,17 @@ defcode "DSP!",4,,DSPSTORE
 defcode "KEY",3,,KEY
         bl getchar              @ r0 = getchar();
         PUSHDSP r0              @ push the return value on the stack
+        NEXT
+
+@ SETFB ( -- ) Sets new framebuffer with GPU
+defcode "SETFB",5,,SETFB
+		bl FB_Init
+		NEXT
+
+@ SHOW ( -- ) Sets new framebuffer with GPU
+defcode "SHOW",4,,SHOW
+		POP3 DSP
+		bl showchar
         NEXT
 
 @ EMIT ( c -- ) Writes character c to stdout
