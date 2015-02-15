@@ -5,6 +5,10 @@
 #include "timer.h"
 #include "serial.h"
 #include "xmodem.h"
+/* USPi Circle lib files */
+#include "uspi.h"
+#include "uspios.h"
+#include "uspienv.h"
 
 /* Declare symbols from FORTH */
 extern void jonesforth();
@@ -260,6 +264,39 @@ monitor()
     serial_eol();
     serial_puts("OK ");
 }
+/*
+ * Init code for circle lib
+ */
+void startUspi( void)
+{
+	if (!USPiEnvInitialize ())
+	{
+		serial_puts("USP Env Init failed");
+ 		return;
+	}
+	
+	if (!USPiInitialize ())
+	{
+		serial_puts("Cannot initialize USPi");
+		USPiEnvClose ();
+		return;
+	}
+	
+	if (!USPiKeyboardAvailable ())
+	{
+		serial_puts("Keyboard not found");
+		USPiEnvClose ();
+		return;
+	}
+	
+}
+/*
+ * Interrupt handler for the keyboard
+*/
+static void KeyPressedHandler (const char *pString)
+	{
+		ScreenDeviceWrite (USPiEnvGetScreen (), pString, strlen (pString));
+	}
 
 /*
  * Entry point for C code
@@ -279,6 +316,13 @@ k_start(u32 sp)
     serial_puts("sp=0x");
     serial_hex32(sp);
     serial_eol();
+	
+	startUspi();
+    serial_puts("Running ");
+
+	ScreenDeviceWrite (USPiEnvGetScreen (), "jForth v0.0", 11);
+	
+	USPiKeyboardRegisterKeyPressedHandler (KeyPressedHandler);
 
     // jump to FORTH entry-point
     jonesforth();

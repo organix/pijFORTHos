@@ -1,12 +1,13 @@
 
 MEMORY
 {
-    arm : ORIGIN = 0x8000, LENGTH = 0x8000
+    arm : ORIGIN = 0x8000, LENGTH = 0x20000
 }
 
 SECTIONS
 {
     .text : { *(.text*) } > arm
+	_etext = .;
     .rodata : { *(.rodata*) } > arm
     .data : { *(.data*) } > arm
     .bss : { *(.bss*) } > arm

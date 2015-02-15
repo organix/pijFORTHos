@@ -762,13 +762,13 @@ defcode "KEY",3,,KEY
 
 @ SETFB ( -- ) Sets new framebuffer with GPU
 defcode "SETFB",5,,SETFB
-		bl FB_Init
+@		bl FB_Init
 		NEXT
 
 @ SHOW ( -- ) Sets new framebuffer with GPU
 defcode "SHOW",4,,SHOW
 		POP3 DSP
-		bl showchar
+@		bl showchar
         NEXT
 
 @ EMIT ( c -- ) Writes character c to stdout
