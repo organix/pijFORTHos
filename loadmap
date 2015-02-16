@@ -1,15 +1,30 @@
-
-MEMORY
-{
-    arm : ORIGIN = 0x8000, LENGTH = 0x20000
-}
+/*
+ * uspienv.ld
+ */
 
 SECTIONS
 {
-    .text : { *(.text*) } > arm
-	_etext = .;
-    .rodata : { *(.rodata*) } > arm
-    .data : { *(.data*) } > arm
-    .bss : { *(.bss*) } > arm
-}
+	. = 0x8000;
+	
+	.text : {
+		*(.text*)
+	}
 
+	_etext = .;
+
+	.rodata : {
+		*(.rodata*)
+	}
+
+	.data : {
+		*(.data*)
+	}
+
+	__bss_start = .;
+
+	.bss : {
+		*(.bss*)
+	}
+
+	_end = .;
+}

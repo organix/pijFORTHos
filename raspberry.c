@@ -5,10 +5,11 @@
 #include "timer.h"
 #include "serial.h"
 #include "xmodem.h"
-/* USPi Circle lib files */
+/* USPi lib files */
 #include "uspi.h"
 #include "uspios.h"
 #include "uspienv.h"
+#include <uspienv/util.h>
 
 /* Declare symbols from FORTH */
 extern void jonesforth();
@@ -301,8 +302,7 @@ static void KeyPressedHandler (const char *pString)
 /*
  * Entry point for C code
  */
-void
-k_start(u32 sp)
+int main(void)
 {
     timer_init();
     serial_init();
@@ -313,8 +313,8 @@ k_start(u32 sp)
 
     // display banner
     serial_puts("pijFORTHos 0.1.8 ");
-    serial_puts("sp=0x");
-    serial_hex32(sp);
+    //serial_puts("sp=0x");
+    //serial_hex32(sp);
     serial_eol();
 	
 	startUspi();
@@ -326,4 +326,6 @@ k_start(u32 sp)
 
     // jump to FORTH entry-point
     jonesforth();
+	
+	return EXIT_HALT;
 }
