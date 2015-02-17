@@ -1,5 +1,11 @@
 /*
  * raspberry.c -- Raspberry Pi kernel routines written in C
+ *
+ * see README.pijForth for original writers
+ *
+ * Modified Feb 2015 David Stevenson
+ *
+ * License GPL3 - see license file
  */
 #include "raspi.h"
 #include "timer.h"
@@ -11,11 +17,14 @@
 #include "uspienv.h"
 #include <uspienv/util.h>
 
+/* extern func with no .h file */
+extern void ScreenDeviceNewLine (TScreenDevice *pThis);
+extern void ScreenDeviceDisplayChar (TScreenDevice *pThis, char chChar);
+
 /* Declare symbols from FORTH */
 extern void jonesforth();
 
 /* Exported procedures (force full register discipline) */
-extern void k_start(u32 sp);
 extern void monitor();
 extern int putchar(int c);
 extern int getchar();
@@ -109,15 +118,18 @@ dump256(const u8* p)
 
 /*
  * Traditional single-character "cooked" output
+ * sent to serial and screen
  */
 int
 putchar(int c)
 {
     if (c == '\n') {
         serial_eol();
-    } else {
+		ScreenDeviceNewLine (USPiEnvGetScreen ());
+	} else {
         serial_write(c);
-    }
+		ScreenDeviceDisplayChar (USPiEnvGetScreen (),c);
+	}
     return c;
 }
 
@@ -152,6 +164,7 @@ getchar()
 
 /*
  * Get single line of edited input
+ * this is only called from getchar
  */
 char*
 editline()
@@ -159,19 +172,21 @@ editline()
     int c;
 
     linelen = 0;  // reset write position
-    while (linelen < (sizeof(linebuf) - 1)) {
-        c = _getchar();
-        if (c == '\b') {
-            if (--linelen < 0) {
-                linelen = 0;
-                continue;  // no echo
-            }
-        } else {
-            linebuf[linelen++] = c;
-        }
-        putchar(c);  // echo input
-        if (c == '\n') {
-            break;  // end-of-line
+    while ((linelen < (sizeof(linebuf) - 1)) &&(linebuf[linelen-1]!='\n')) {
+		if(serial_in_ready())
+		{
+			c = _getchar();
+			if (c == '\b') {
+				if (--linelen < 0) {
+					linelen = 0;
+					continue;  // no echo
+				}
+			} else {
+				linebuf[linelen++] = c;
+			}
+			putchar(c);  // echo input
+			//if (linebuf[linelen-1]== '\n') {
+			//    break;  // end-of-line
         }
     }
     linebuf[linelen] = '\0';  // ensure NUL termination
@@ -180,7 +195,8 @@ editline()
 }
 
 /*
- * Wait for whitespace character from keyboard
+ * Wait for whitespace character from serial in
+ * called in monitor
  */
 int
 wait_for_kb()
@@ -266,7 +282,7 @@ monitor()
     serial_puts("OK ");
 }
 /*
- * Init code for circle lib
+ * Init code for uspi lib
  */
 void startUspi( void)
 {
@@ -296,7 +312,21 @@ void startUspi( void)
 */
 static void KeyPressedHandler (const char *pString)
 	{
-		ScreenDeviceWrite (USPiEnvGetScreen (), pString, strlen (pString));
+		char c;
+		
+		c = pString[0];
+		if (c == '\b') 
+			{
+			if (--linelen < 0)
+				{
+					linelen = 0;
+					return;  // no echo
+				}
+			} else 
+			{
+				linebuf[linelen++] = c;
+			}
+			putchar(c);  // echo input
 	}
 
 /*
@@ -309,7 +339,7 @@ int main(void)
 
     // wait for initial interaction
     serial_puts(";-) ");
-    putchar(wait_for_kb());
+    //wait_for_kb();
 
     // display banner
     serial_puts("pijFORTHos 0.1.8 ");
