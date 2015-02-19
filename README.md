@@ -27,4 +27,16 @@ On linux with a working GCC cross compiler
 Note on a raspberry, or other systems you may need to change the PREFIX in the makefile
 
 Installing
-The ready build *kernel.img* image file is in the same directory where its source code is. Copy it on a SD(HC) card along with the firmware files *bootcode.bin*, *fixup.dat* and *start.elf* which can be get [here](https://github.com/raspberrypi/firmware/tree/master/boot). Put the SD(HC) card into your Raspberry Pi and start it.
+The ready build *kernel.img* image file is in the top directory.
+Copy it on a SD(HC) card along with the firmware files
+	bootcode.bin
+	fixup.dat
+	start.elf
+which can be got from https://github.com/raspberrypi/firmware/tree/master/boot.
+Put the SD(HC) card into your Raspberry Pi and start it.
+
+Note the original pijFortos used a serial port and I have left that working. This allows loading and saving forth files via copy and paste to a serial terminal on a PC.
+Connect at 9600 8N1
+
+Note the forth is now very slow - PLEASE FIX - I find I can download code files to it only if I set a delay between lines. This is an advanced option in Gnome serial terminal.
+

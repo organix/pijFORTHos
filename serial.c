@@ -94,10 +94,22 @@ serial_init()
     GPPUDCLK0 = r0;
     SPIN(150);                  // wait for (at least) 150 clock cycles
     GPPUDCLK0 = 0;
+	
+//(3000000 / (16 * 115200) = 1.627
+//(0.627*64)+0.5 = 40
+//int 1 frac 40				use 1 , 40 for 115200
+
+//(3000000 / (16 * 19200) = 9.766
+//(0.766*64)+0.5 = 49.5
+//int 9 frac 50				use 9,50 for 19200
+
+//(3000000 / (16 * 9600) = 19.531
+//(0.766*64)+0.5 = 34.5
+//int 19 frac 34				use 19,34 for 9600
 
     UART0->ICR = 0x7FF;
-    UART0->IBRD = 1;
-    UART0->FBRD = 40;
+    UART0->IBRD = 19;
+    UART0->FBRD = 34;
     UART0->LCRH = 0x70;
     UART0->CR = 0x301;
 #endif /* USE_SERIAL_UART0 */

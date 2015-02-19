@@ -20,7 +20,7 @@
 /* extern func with no .h file */
 extern void ScreenDeviceNewLine (TScreenDevice *pThis);
 extern void ScreenDeviceDisplayChar (TScreenDevice *pThis, char chChar);
-
+extern void ScreenDeviceCursorLeft(TScreenDevice *pThis);
 /* Declare symbols from FORTH */
 extern void jonesforth();
 
@@ -128,6 +128,13 @@ putchar(int c)
 		ScreenDeviceNewLine (USPiEnvGetScreen ());
 	} else {
         serial_write(c);
+		if(c == 127)
+		{
+			ScreenDeviceCursorLeft(USPiEnvGetScreen ());
+			ScreenDeviceDisplayChar (USPiEnvGetScreen (),' ');
+			ScreenDeviceCursorLeft(USPiEnvGetScreen ());			
+		}
+		else		
 		ScreenDeviceDisplayChar (USPiEnvGetScreen (),c);
 	}
     return c;
@@ -315,18 +322,17 @@ static void KeyPressedHandler (const char *pString)
 		char c;
 		
 		c = pString[0];
-		if (c == '\b') 
+		if (c == 127) 
 			{
 			if (--linelen < 0)
 				{
 					linelen = 0;
-					return;  // no echo
 				}
 			} else 
 			{
 				linebuf[linelen++] = c;
 			}
-			putchar(c);  // echo input
+		putchar(c);  // echo input
 	}
 
 /*
