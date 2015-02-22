@@ -765,10 +765,9 @@ defcode "SETFB",5,,SETFB
 @		bl FB_Init
 		NEXT
 
-@ SHOW ( -- ) Sets new framebuffer with GPU
-defcode "SHOW",4,,SHOW
-		POP3 DSP
-@		bl showchar
+@ READ0 ( -- ) Reads SD card block 0
+defcode "READ0",5,,READ0
+		bl readSector_0
         NEXT
 
 @ EMIT ( c -- ) Writes character c to stdout

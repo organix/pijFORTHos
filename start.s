@@ -57,3 +57,10 @@ SPIN: @ void SPIN(u32 count);
  subs r0, #1 @ decrement count
  bge SPIN @ until negative
  bx lr
+
+@ for emmc.c
+.globl memory_barrier
+memory_barrier:
+ mov r0, #0
+ mcr p15, #0, r0, c7, c10, #5
+ mov pc, lr

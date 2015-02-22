@@ -9,10 +9,10 @@ AS      = $(PREFIX)as
 CP      = $(PREFIX)objcopy
 OD      = $(PREFIX)objdump
 
-CFLAGS  = -g -Wall -O2 -march=armv6 -mtune=arm1176jzf-s -nostdlib -nostartfiles -ffreestanding -I ./
+CFLAGS  = -g -Wall -O2 -std=c99 -march=armv6 -mtune=arm1176jzf-s -nostdlib -nostartfiles -ffreestanding -I ./
 
-
-KOBJS=	start.o sysinit.o jonesforth.o raspberry.o timer.o serial.o xmodem.o 
+SDOBJS  = emmc.o printf.o mmio.o emmc_timer.o mbox.o 
+KOBJS   = start.o sysinit.o jonesforth.o raspberry.o timer.o serial.o xmodem.o $(SDOBJS)
 LIBS	= ./libuspi.a ./libuspienv.a
 
 all: kernel.img
