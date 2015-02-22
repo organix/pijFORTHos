@@ -16,17 +16,17 @@
 #include "uspios.h"
 #include "uspienv.h"
 #include <uspienv/util.h>
+
 /* SD card files */
-#include "block.h"
-//g#include <stdint.h>
-#define NULL ((void*)0)
+//#include "vfs.h"
+
+
+
 /* extern func with no .h file */
 extern void ScreenDeviceNewLine (TScreenDevice *pThis);
 extern void ScreenDeviceDisplayChar (TScreenDevice *pThis, char chChar);
 extern void ScreenDeviceCursorLeft(TScreenDevice *pThis);
-extern void printf(const char *fmt, ...);
-int sd_card_init(struct block_device **dev);
-int sd_read(struct block_device *dev, uint8_t *buf, size_t buf_size, uint32_t block_no);
+
 
 
 /* Declare symbols from FORTH */
@@ -146,10 +146,6 @@ putchar(int c)
 		ScreenDeviceDisplayChar (USPiEnvGetScreen (),c);
 	}
     return c;
-}
-int putc(int c,void *stream )
-{
-	return putchar(c);
 }
 /*
  * Single-character "cooked" input (unbuffered)
@@ -299,29 +295,6 @@ monitor()
     serial_eol();
     serial_puts("OK ");
 }
-/*
- * Simple test of SD code
- * read sector 0 and dump to screen
- */
-void readSector_0( void)
-	{
-//	struct block_device sd_device;	
-	struct block_device *sd_dev = NULL;  //&sd_device;
-	uint8_t		block_0[1024];	
-	int bytes_read;
-	
-	if(sd_card_init(&sd_dev) == 0)
-		{
-		printf("MBR: reading block 0 from device %s\n", sd_dev->device_name);
-
-		bytes_read = sd_read(sd_dev, block_0, 512, 0);
-		if(bytes_read < 0)
-			{
-			printf("MBR: block_read failed (%i)\n", bytes_read);
-			}
-		dump256(block_0);
-		}
-	}
 
 /*
  * Init code for uspi lib

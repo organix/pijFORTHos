@@ -11,7 +11,7 @@ OD      = $(PREFIX)objdump
 
 CFLAGS  = -g -Wall -O2 -std=c99 -march=armv6 -mtune=arm1176jzf-s -nostdlib -nostartfiles -ffreestanding -I ./
 
-SDOBJS  = emmc.o printf.o mmio.o emmc_timer.o mbox.o 
+SDOBJS  = emmc.o printf.o mmio.o emmc_timer.o mbox.o mbr.o libfs.o fat.o block.o vfs.o file_open.o
 KOBJS   = start.o sysinit.o jonesforth.o raspberry.o timer.o serial.o xmodem.o $(SDOBJS)
 LIBS	= ./libuspi.a ./libuspienv.a
 
