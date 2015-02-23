@@ -17,8 +17,6 @@
 #include "uspienv.h"
 #include <uspienv/util.h>
 
-/* SD card files */
-//#include "vfs.h"
 
 
 
@@ -26,6 +24,8 @@
 extern void ScreenDeviceNewLine (TScreenDevice *pThis);
 extern void ScreenDeviceDisplayChar (TScreenDevice *pThis, char chChar);
 extern void ScreenDeviceCursorLeft(TScreenDevice *pThis);
+extern void	libfs_init(void);
+extern char getfiledata(void);
 
 
 
@@ -39,11 +39,15 @@ extern int getchar();
 extern void hexdump(const u8* p, int n);
 extern void dump256(const u8* p);
 
+/* public data */
+int		filedata = 0;		// data from file available for input
+
 /* Private data structures */
 static char linebuf[256];  // line editing buffer
 static int linepos = 0;  // read position
 static int linelen = 0;  // write position
 static const char* hex = "0123456789abcdef";  // hexadecimal map
+
 
 /*
  * Print u32 in hexadecimal to serial port
@@ -170,6 +174,11 @@ getchar()
 {
     char* editline();
 
+	if(filedata)
+	{
+		return getfiledata();
+	}
+
     while (linepos >= linelen) {
         editline();
     }
@@ -185,8 +194,8 @@ editline()
 {
     int c;
 
-    linelen = 0;  // reset write position
-    while ((linelen < (sizeof(linebuf) - 1)) &&(linebuf[linelen-1]!='\n')) {
+	linelen = 0;  // reset write position
+	while ((linelen < (sizeof(linebuf) - 1)) &&(linebuf[linelen-1]!='\n')) {
 		if(serial_in_ready())
 		{
 			c = _getchar();
@@ -201,8 +210,8 @@ editline()
 			putchar(c);  // echo input
 			//if (linebuf[linelen-1]== '\n') {
 			//    break;  // end-of-line
-        }
-    }
+		}
+	}
     linebuf[linelen] = '\0';  // ensure NUL termination
     linepos = 0;  // reset read position
     return linebuf;
@@ -350,21 +359,13 @@ int main(void)
 {
     timer_init();
     serial_init();
-
-    // wait for initial interaction
-    serial_puts(";-) ");
-    //wait_for_kb();
-
-    // display banner
-    serial_puts("pijFORTHos 0.1.8 ");
-    //serial_puts("sp=0x");
-    //serial_hex32(sp);
-    serial_eol();
-	
 	startUspi();
-    serial_puts("Running ");
+	libfs_init();
 
-	ScreenDeviceWrite (USPiEnvGetScreen (), "jForth v0.0 \r", 13);
+    serial_puts("pijFORTHos 0.1.8 ");
+    serial_eol();
+
+	ScreenDeviceWrite (USPiEnvGetScreen (), "jForth v0.0 \n", 13);
 	
 	USPiKeyboardRegisterKeyPressedHandler (KeyPressedHandler);
 

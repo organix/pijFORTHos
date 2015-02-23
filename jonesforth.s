@@ -106,6 +106,8 @@ jonesforth:
         ldr r1, =var_HERE               @ Initialize HERE to point at
         str r0, [r1]                    @   the beginning of data segment
         ldr FIP, =cold_start            @ Make the FIP point to cold_start
+		ldr r0, =loadname
+		bl loadfile						@ file name in r0, return to 
         NEXT                            @ Start the interpreter
 
 @ _DOCOL is the assembly subroutine that is called
@@ -765,9 +767,10 @@ defcode "SETFB",5,,SETFB
 @		bl FB_Init
 		NEXT
 
-@ READ0 ( -- ) Reads SD card block 0
-defcode "READ0",5,,READ0
-		bl readSector_0
+@ LOAD ( addr-- ) Loads given filename
+defcode "LOAD",4,,LOAD
+        POPDSP r0
+		bl loadfile
         NEXT
 
 @ EMIT ( c -- ) Writes character c to stdout
@@ -1749,8 +1752,9 @@ defcode "BOOT",4,,BOOT
         bl _TELL                @ write error message to console
         NEXT
 
-.section .rodata
-errboot: .ascii "Bad image!\n"
+.section 	.rodata
+errboot: 	.ascii "Bad image!\n"
+loadname: 	.ascii "forth.f\0"
 errbootend:
 
 @ MONITOR ( -- ) Enter bootstrap monitor
