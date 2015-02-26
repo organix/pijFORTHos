@@ -33,13 +33,13 @@
 #define usleep(x)	timer_wait(x)
 
 #include <stdint.h>
-//#include <stdio.h>
+#include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-//#include <assert.h>
+#include <assert.h>
 #include "mmio.h"
 #include "block.h"
-#include "emmc_timer.h"
+#include "timer.h"
 #include "util.h"
 
 extern int printf(const char *format, ...);
@@ -896,9 +896,6 @@ static void sd_issue_command_int(struct emmc_block_dev *dev, uint32_t cmd_reg, u
     {
         uint32_t wr_irpt;
         int is_write = 0;
-#ifdef EMMC_DEBUG
-        printf("SD: Wait for Data Interrupt\n");
-#endif
         if(cmd_reg & SD_CMD_DAT_DIR_CH)
             wr_irpt = (1 << 5);     // read
         else

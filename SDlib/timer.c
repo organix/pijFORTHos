@@ -19,7 +19,7 @@
  * THE SOFTWARE.
  */
 
-#include "emmc_timer.h"
+#include "timer.h"
 #include "mmio.h"
 //#include <errno.h>
 #include <stdint.h>

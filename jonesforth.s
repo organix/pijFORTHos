@@ -763,13 +763,16 @@ defcode "KEY",3,,KEY
         NEXT
 
 @ SETFB ( -- ) Sets new framebuffer with GPU
-defcode "SETFB",5,,SETFB
+@ defcode "SETFB",5,,SETFB
 @		bl FB_Init
-		NEXT
+@		NEXT
 
-@ LOAD ( addr-- ) Loads given filename
+@ LOAD ( -- ) gets file name from keyboard, loads file as code
 defcode "LOAD",4,,LOAD
-        POPDSP r0
+		bl _WORD
+		add		r1,r1,r0		@ r1 = len + r0 = address 
+		ldr		r2,=0
+		strb	r2,[r1]		@ null terminator
 		bl loadfile
         NEXT
 
