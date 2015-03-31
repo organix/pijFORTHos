@@ -741,6 +741,26 @@ defcode "RDROP",5,,RDROP
 defcode "RSP@",4,,RSPFETCH
         PUSHDSP RSP
         NEXT
+@ I J are same, get copy of top and second or datastack for LOOP
+defcode "I",1,,RSP2FETCH
+        ldr r0, [RSP]       @ R ( J I  ), r0 = I
+        PUSHDSP r0
+        NEXT
+
+defcode "J",1,,RSP3FETCH
+        ldr r0, [RSP, #4]       @ R ( J I  ), r0 = J
+        PUSHDSP r0
+        NEXT
+
+defcode "I!",2,,RSP2STORE
+        POPDSP r0
+        str r0, [RSP]       @ R ( J I ), r0 = I
+        NEXT
+
+defcode "J!",2,,RSP3STORE
+        POPDSP r0
+        str r0, [RSP, #4]       @ R ( J I ), r0 = J
+        NEXT
 
 defcode "RSP!",4,,RSPSTORE
         POPDSP RSP
@@ -1003,14 +1023,18 @@ defcode ">DFA",4,,TDFA
         PUSHDSP r0
         NEXT
 
-@ CREATE ( address length -- ) Creates a new dictionary entry
-@ in the data segment.
+@ CREATE ( -- ) 
+@ Creates a new dictionary entry in the data segment.
+@ revised version calls WORD to get name, no stack items
+@ this also needs to be 32bit aligned
 defcode "CREATE",6,,CREATE
-        POPDSP r1       @ length of the word to insert into the dictionnary
-        POPDSP r0       @ address of the word to insert into the dictionnary
-
+        @POPDSP r1       @ length of the word to insert into the dictionnary
+        @POPDSP r0       @ address of the word to insert into the dictionnary
+		bl	_WORD		@ get word and length
         ldr r2,=var_HERE
         ldr r3,[r2]     @ load into r3 and r8 the location of the header
+        add r3,r3,#3            @ align to next 4 byte boundary
+        and r3,r3,#~3
         mov r8,r3
 
         ldr r4,=var_LATEST
@@ -1074,9 +1098,10 @@ defcode "]",1,,RBRAC
         NEXT
 
 @ : word ( -- ) Define a new FORTH word
+@ new version WORD is called inside CREATE
 @ : : WORD CREATE DOCOL , LATEST @ HIDDEN ] ;
 defword ":",1,,COLON
-        .int WORD                       @ Get the name of the new word
+        @.int WORD                       @ Get the name of the new word
         .int CREATE                     @ CREATE the dictionary entry / header
         .int DOCOL, COMMA               @ Append DOCOL (the codeword).
         .int LATEST, FETCH, HIDDEN      @ Make the word hidden (see definition below).
@@ -1260,9 +1285,10 @@ defcode "LITS",4,,LITS
         NEXT
 
 @ CONSTANT name ( value -- ) create named constant value
+@ new version WORD is called in CREATE
 @ : CONSTANT WORD CREATE DOCOL , ' LIT , , ' EXIT , ;
 defword "CONSTANT",8,,CONSTANT
-        .int WORD               @ get the name (the name follows CONSTANT)
+        @.int WORD               @ get the name (the name follows CONSTANT)
         .int CREATE             @ make the dictionary entry
         .int DOCOL, COMMA       @ append _DOCOL (the codeword field of this word)
         .int TICK, LIT, COMMA   @ append the codeword LIT
@@ -1284,10 +1310,12 @@ defword "CELLS",5,,CELLS
         .int EXIT               @ Return.
 
 @ VARIABLE name ( -- addr ) create named variable location
+@ new version WORD is called in CREATE
 @ : VARIABLE 1 CELLS ALLOT WORD CREATE DOCOL , ' LIT , , ' EXIT , ;
 defword "VARIABLE",8,,VARIABLE
         .int LIT, 4, ALLOT      @ allocate 1 cell of memory, push the pointer to this memory
-        .int WORD, CREATE       @ make the dictionary entry (the name follows VARIABLE)
+        @.int WORD, 
+		.int CREATE       @ make the dictionary entry (the name follows VARIABLE)
         .int DOCOL, COMMA       @ append _DOCOL (the codeword field of this word)
         .int TICK, LIT, COMMA   @ append the codeword LIT
         .int COMMA              @ append the pointer to the new memory
