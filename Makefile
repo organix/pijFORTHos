@@ -1,39 +1,45 @@
 #
 # Makefile for pijFORTHos -- Raspberry Pi JonesFORTH Operating System
 #
+LIBRARIES := libuspi
+PREFIX  = arm-none-eabi-
+CC      = $(PREFIX)gcc
+LD      = $(PREFIX)ld
+AS      = $(PREFIX)as
+CP      = $(PREFIX)objcopy
+OD      = $(PREFIX)objdump
 
-AS=	as
-CC=	gcc -g -Wall -O2 -nostdlib -nostartfiles -ffreestanding
-LD=	ld
+CFLAGS  = -g -Wall -O2 -std=c99 -march=armv6 -mtune=arm1176jzf-s -nostdlib -nostartfiles -ffreestanding -I ./
 
-KOBJS=	start.o jonesforth.o raspberry.o timer.o serial.o xmodem.o
+#SDOBJS  = emmc.o printf.o mmio.o emmc_timer.o mbox.o mbr.o libfs.o fat.o block.o vfs.o 
+KOBJS   = start.o sysinit.o jonesforth.o raspberry.o timer.o serial.o xmodem.o file_open.o
+LIBS	= ./libuspi.a ./libuspienv.a ./SDlib/SDlib.a
 
 all: kernel.img
 
-start.o: start.s
-	$(AS) start.s -o start.o
+#start.o: start.S
+#	$(AS) start.S -o start.o
 
 jonesforth.o: jonesforth.s
 	$(AS) jonesforth.s -o jonesforth.o
-
-#raspberry.o: raspberry.c
-#	$(CC) -c raspberry.c -o raspberry.o
+	
+#frameBuffer.o: frameBuffer.s font.bin
+#	$(AS) frameBuffer.s -o frameBuffer.o
 
 kernel.img: loadmap $(KOBJS)
-	$(LD) $(KOBJS) -T loadmap -o pijFORTHos.elf
-	objdump -D pijFORTHos.elf > pijFORTHos.list
-	objcopy pijFORTHos.elf -O ihex pijFORTHos.hex
-	objcopy --only-keep-debug pijFORTHos.elf kernel.sym
-	objcopy pijFORTHos.elf -O binary kernel.img
+	$(LD) $(KOBJS) -T loadmap -o pijFORTHos.elf $(LIBS)
+	$(OD) -D pijFORTHos.elf > pijFORTHos.list
+	$(CP) pijFORTHos.elf -O ihex pijFORTHos.hex
+	$(CP) --only-keep-debug pijFORTHos.elf kernel.sym
+	$(CP) pijFORTHos.elf -O binary kernel.img
 
 .c.o:
-	$(CC) -c $<
+	$(CC) $(CFLAGS) -c $<
 
 clean:
 	rm -f *.o
-	rm -f *.bin
 	rm -f *.hex
 	rm -f *.elf
 	rm -f *.list
-	rm -f *.img
+	rm -f *.sym
 	rm -f *~ core

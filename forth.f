@@ -39,7 +39,8 @@
 	THEN
 ;
 : DICT WORD FIND ;
-: VALUE ( n -- ) WORD CREATE DOCOL , ' LIT , , ' EXIT , ;
+
+: VALUE ( n -- ) CREATE DOCOL , ' LIT , , ' EXIT , ;
 : TO IMMEDIATE ( n -- )
         DICT >DFA 4+
 	STATE @ IF ' LIT , , ' ! , ELSE ! THEN
@@ -73,7 +74,8 @@
 	ENDCASE 4 + REPEAT
 	';' EMIT CR 2DROP
 ;
-: :NONAME 0 0 CREATE HERE @ DOCOL , ] ;
+( @@@@@@@@@@@ to be fixed with new create @@@@@@@@@@@@@ )
+( : :NONAME 0 0 CREATE HERE @ DOCOL , ] ; )
 : ['] IMMEDIATE ' LIT , ;
 : EXCEPTION-MARKER RDROP 0 ;
 : CATCH ( xt -- exn? ) DSP@ 4+ >R ' EXCEPTION-MARKER 4+ >R EXECUTE ;

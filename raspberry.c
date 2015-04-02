@@ -1,27 +1,53 @@
 /*
  * raspberry.c -- Raspberry Pi kernel routines written in C
+ *
+ * see README.pijForth for original writers
+ *
+ * Modified Feb 2015 David Stevenson
+ *
+ * License GPL3 - see license file
  */
 #include "raspi.h"
 #include "timer.h"
 #include "serial.h"
 #include "xmodem.h"
+/* USPi lib files */
+#include "uspi.h"
+#include "uspios.h"
+#include "uspienv.h"
+#include <uspienv/util.h>
+
+
+
+
+/* extern func with no .h file */
+extern void ScreenDeviceNewLine (TScreenDevice *pThis);
+extern void ScreenDeviceDisplayChar (TScreenDevice *pThis, char chChar);
+extern void ScreenDeviceCursorLeft(TScreenDevice *pThis);
+extern void	libfs_init(void);
+extern char getfiledata(void);
+
+
 
 /* Declare symbols from FORTH */
 extern void jonesforth();
 
 /* Exported procedures (force full register discipline) */
-extern void k_start(u32 sp);
 extern void monitor();
 extern int putchar(int c);
 extern int getchar();
 extern void hexdump(const u8* p, int n);
 extern void dump256(const u8* p);
 
+/* public data */
+int		filedata = 0;		// data from file available for input
+
 /* Private data structures */
 static char linebuf[256];  // line editing buffer
 static int linepos = 0;  // read position
 static int linelen = 0;  // write position
 static const char* hex = "0123456789abcdef";  // hexadecimal map
+
 
 /*
  * Print u32 in hexadecimal to serial port
@@ -104,18 +130,27 @@ dump256(const u8* p)
 
 /*
  * Traditional single-character "cooked" output
+ * sent to serial and screen
  */
 int
 putchar(int c)
 {
     if (c == '\n') {
         serial_eol();
-    } else {
+		ScreenDeviceNewLine (USPiEnvGetScreen ());
+	} else {
         serial_write(c);
-    }
+		if(c == 127)
+		{
+			ScreenDeviceCursorLeft(USPiEnvGetScreen ());
+			ScreenDeviceDisplayChar (USPiEnvGetScreen (),' ');
+			ScreenDeviceCursorLeft(USPiEnvGetScreen ());			
+		}
+		else		
+		ScreenDeviceDisplayChar (USPiEnvGetScreen (),c);
+	}
     return c;
 }
-
 /*
  * Single-character "cooked" input (unbuffered)
  */
@@ -139,6 +174,11 @@ getchar()
 {
     char* editline();
 
+	if(filedata)
+	{
+		return getfiledata();
+	}
+
     while (linepos >= linelen) {
         editline();
     }
@@ -147,35 +187,39 @@ getchar()
 
 /*
  * Get single line of edited input
+ * this is only called from getchar
  */
 char*
 editline()
 {
     int c;
 
-    linelen = 0;  // reset write position
-    while (linelen < (sizeof(linebuf) - 1)) {
-        c = _getchar();
-        if (c == '\b') {
-            if (--linelen < 0) {
-                linelen = 0;
-                continue;  // no echo
-            }
-        } else {
-            linebuf[linelen++] = c;
-        }
-        putchar(c);  // echo input
-        if (c == '\n') {
-            break;  // end-of-line
-        }
-    }
+	linelen = 0;  // reset write position
+	while ((linelen < (sizeof(linebuf) - 1)) &&(linebuf[linelen-1]!='\n')) {
+		if(serial_in_ready())
+		{
+			c = _getchar();
+			if (c == '\b') {
+				if (--linelen < 0) {
+					linelen = 0;
+					continue;  // no echo
+				}
+			} else {
+				linebuf[linelen++] = c;
+			}
+			putchar(c);  // echo input
+			//if (linebuf[linelen-1]== '\n') {
+			//    break;  // end-of-line
+		}
+	}
     linebuf[linelen] = '\0';  // ensure NUL termination
     linepos = 0;  // reset read position
     return linebuf;
 }
 
 /*
- * Wait for whitespace character from keyboard
+ * Wait for whitespace character from serial in
+ * called in monitor
  */
 int
 wait_for_kb()
@@ -262,24 +306,71 @@ monitor()
 }
 
 /*
+ * Init code for uspi lib
+ */
+void startUspi( void)
+{
+	if (!USPiEnvInitialize ())
+	{
+		serial_puts("USP Env Init failed");
+ 		return;
+	}
+	
+	if (!USPiInitialize ())
+	{
+		serial_puts("Cannot initialize USPi");
+		USPiEnvClose ();
+		return;
+	}
+	
+	if (!USPiKeyboardAvailable ())
+	{
+		serial_puts("Keyboard not found");
+		USPiEnvClose ();
+		return;
+	}
+	
+}
+/*
+ * Interrupt handler for the keyboard
+*/
+static void KeyPressedHandler (const char *pString)
+	{
+		char c;
+		
+		c = pString[0];
+		if (c == 127) 
+			{
+			if (--linelen < 0)
+				{
+					linelen = 0;
+				}
+			} else 
+			{
+				linebuf[linelen++] = c;
+			}
+		putchar(c);  // echo input
+	}
+
+/*
  * Entry point for C code
  */
-void
-k_start(u32 sp)
+int main(void)
 {
     timer_init();
     serial_init();
+	startUspi();
+	libfs_init();
 
-    // wait for initial interaction
-    serial_puts(";-) ");
-    putchar(wait_for_kb());
-
-    // display banner
     serial_puts("pijFORTHos 0.1.8 ");
-    serial_puts("sp=0x");
-    serial_hex32(sp);
     serial_eol();
+
+	ScreenDeviceWrite (USPiEnvGetScreen (), "jForth v0.0 \n", 13);
+	
+	USPiKeyboardRegisterKeyPressedHandler (KeyPressedHandler);
 
     // jump to FORTH entry-point
     jonesforth();
+	
+	return EXIT_HALT;
 }
