@@ -2,7 +2,7 @@
 \	A sometimes minimal FORTH compiler and tutorial for Linux / i386 systems. -*- asm -*-
 \	By Richard W.M. Jones <rich@annexia.org> http://annexia.org/forth
 \	This is PUBLIC DOMAIN (see public domain release statement below).
-\	$Id: jonesforth.f,v 1.13 2007/10/07 11:07:15 rich Exp $
+\	$Id: jonesforth.f,v 1.18 2009-09-11 08:32:33 rich Exp $
 \
 \	The first part of this tutorial is in jonesforth.S.  Get if from http://annexia.org/forth
 \
@@ -24,9 +24,9 @@
 \	Secondly make sure TABS are set to 8 characters.  The following should be a vertical
 \	line.  If not, sort out your tabs.
 \
-\	|
-\       |
-\	|
+\		|
+\	        |
+\	    	|
 \
 \	Thirdly I assume that your screen is at least 50 characters high.
 \
@@ -59,15 +59,6 @@
 
 \ SPACE prints a space
 : SPACE BL EMIT ;
-
-\ The 2... versions of the standard operators work on pairs of stack entries.  They're not used
-\ very commonly so not really worth writing in assembler.  Here is how they are defined in FORTH.
-: 2DUP OVER OVER ;
-: 2DROP DROP DROP ;
-
-\ More standard FORTH words.
-: 2* 2 * ;
-: 2/ 2 / ;
 
 \ NEGATE leaves the negative of a number on the stack.
 : NEGATE 0 SWAP - ;
@@ -258,7 +249,7 @@
 
 ( Some more complicated stack examples, showing the stack notation. )
 : NIP ( x y -- y ) SWAP DROP ;
-: TUCK ( x y -- y x y ) DUP ROT ;
+: TUCK ( x y -- y x y ) SWAP OVER ;
 : PICK ( x_u ... x_1 x_0 u -- x_u ... x_1 x_0 x_u )
 	1+		( add one because of 'u' on the stack )
 	4 *		( multiply by the word size )
@@ -358,7 +349,7 @@
 	SWAP		( width u )
 	DUP		( width u u )
 	UWIDTH		( width u uwidth )
-	-ROT		( u uwidth width )
+	ROT		( u uwidth width )
 	SWAP -		( u width-uwidth )
 	( At this point if the requested width is narrower, we'll have a negative number on the stack.
 	  Otherwise the number on the stack is the number of spaces to print.  But SPACES won't print
@@ -377,18 +368,18 @@
 	DUP 0< IF
 		NEGATE		( width u )
 		1		( save a flag to remember that it was negative | width n 1 )
-		ROT		( 1 width u )
-		SWAP		( 1 u width )
+		SWAP		( width 1 u )
+		ROT		( 1 u width )
 		1-		( 1 u width-1 )
 	ELSE
 		0		( width u 0 )
-		ROT		( 0 width u )
-		SWAP		( 0 u width )
+		SWAP		( width 0 u )
+		ROT		( 0 u width )
 	THEN
 	SWAP		( flag width u )
 	DUP		( flag width u u )
 	UWIDTH		( flag width u uwidth )
-	-ROT		( flag u uwidth width )
+	ROT		( flag u uwidth width )
 	SWAP -		( flag u width-uwidth )
 
 	SPACES		( flag u )
@@ -411,8 +402,9 @@
 : ? ( addr -- ) @ . ;
 
 ( c a b WITHIN returns true if a <= c and c < b )
+(  or define without ifs: OVER - >R - R>  U<  )
 : WITHIN
-	ROT		( b c a )
+	-ROT		( b c a )
 	OVER		( b c a c )
 	<= IF
 		> IF		( b c -- )
@@ -658,8 +650,9 @@
 	want a variable which is read often, and written infrequently.
 
 	20 VALUE VAL 	creates VAL with initial value 20
-	VAL		pushes the value directly on the stack
+	VAL		pushes the value (20) directly on the stack
 	30 TO VAL	updates VAL, setting it to 30
+	VAL		pushes the value (30) directly on the stack
 
 	Notice that 'VAL' on its own doesn't return the address of the value, but the value itself,
 	making values simpler and more obvious to use than variables (no indirection through '@').
@@ -830,13 +823,17 @@
 
 	Notice that the parameters to DUMP (address, length) are compatible with string words
 	such as WORD and S".
+
+	You can dump out the raw code for the last word you defined by doing something like:
+
+		LATEST @ 128 DUMP
 )
 : DUMP		( addr len -- )
-	BASE @ ROT		( save the current BASE at the bottom of the stack )
-	HEX			( and switch the hexadecimal mode )
+	BASE @ -ROT		( save the current BASE at the bottom of the stack )
+	HEX			( and switch to hexadecimal mode )
 
 	BEGIN
-		DUP 0>		( while len > 0 )
+		?DUP		( while len > 0 )
 	WHILE
 		OVER 8 U.R	( print the address )
 		SPACE
@@ -845,19 +842,19 @@
 		2DUP		( addr len addr len )
 		1- 15 AND 1+	( addr len addr linelen )
 		BEGIN
-			DUP 0>		( while linelen > 0 )
+			?DUP		( while linelen > 0 )
 		WHILE
 			SWAP		( addr len linelen addr )
 			DUP C@		( addr len linelen addr byte )
 			2 .R SPACE	( print the byte )
 			1+ SWAP 1-	( addr len linelen addr -- addr len addr+1 linelen-1 )
 		REPEAT
-		2DROP		( addr len )
+		DROP		( addr len )
 
 		( print the ASCII equivalents )
 		2DUP 1- 15 AND 1+ ( addr len addr linelen )
 		BEGIN
-			DUP 0>		( while linelen > 0)
+			?DUP		( while linelen > 0)
 		WHILE
 			SWAP		( addr len linelen addr )
 			DUP C@		( addr len linelen addr byte )
@@ -868,19 +865,16 @@
 			THEN
 			1+ SWAP 1-	( addr len linelen addr -- addr len addr+1 linelen-1 )
 		REPEAT
-		2DROP		( addr len )
+		DROP		( addr len )
 		CR
 
 		DUP 1- 15 AND 1+ ( addr len linelen )
-		DUP		( addr len linelen linelen )
-		ROT		( addr linelen len linelen )
+		TUCK		( addr linelen len linelen )
 		-		( addr linelen len-linelen )
-		ROT		( len-linelen addr linelen )
-		+		( len-linelen addr+linelen )
-		SWAP		( addr-linelen len-linelen )
+		>R + R>		( addr+linelen len-linelen )
 	REPEAT
 
-	2DROP			( restore stack )
+	DROP			( restore stack )
 	BASE !			( restore saved BASE )
 ;
 
@@ -891,13 +885,13 @@
 	agreed syntax for this, so I've gone for the syntax mandated by the ISO standard
 	FORTH (ANS-FORTH).
 
-	( some value on the stack )
-	CASE
-	test1 OF ... ENDOF
-	test2 OF ... ENDOF
-	testn OF ... ENDOF
-	... ( default case )
-	ENDCASE
+		( some value on the stack )
+		CASE
+		test1 OF ... ENDOF
+		test2 OF ... ENDOF
+		testn OF ... ENDOF
+		... ( default case )
+		ENDCASE
 
 	The CASE statement tests the value on the stack by comparing it for equality with
 	test1, test2, ..., testn and executes the matching piece of code within OF ... ENDOF.
@@ -912,14 +906,14 @@
 	An example (assuming that 'q', etc. are words which push the ASCII value of the letter
 	on the stack):
 
-	0 VALUE QUIT
-	0 VALUE SLEEP
-	KEY CASE
-		'q' OF 1 TO QUIT ENDOF
-		's' OF 1 TO SLEEP ENDOF
-		( default case: )
-		." Sorry, I didn't understand key <" DUP EMIT ." >, try again." CR
-	ENDCASE
+		0 VALUE QUIT
+		0 VALUE SLEEP
+		KEY CASE
+			'q' OF 1 TO QUIT ENDOF
+			's' OF 1 TO SLEEP ENDOF
+			( default case: )
+			." Sorry, I didn't understand key <" DUP EMIT ." >, try again." CR
+		ENDCASE
 
 	(In some versions of FORTH, more advanced tests are supported, such as ranges, etc.
 	Other versions of FORTH need you to write OTHERWISE to indicate the default case.
@@ -1576,7 +1570,7 @@
 : R/W ( -- fam ) O_RDWR ;
 
 : OPEN-FILE	( addr u fam -- fd 0 (if successful) | c-addr u fam -- fd errno (if there was an error) )
-	ROT		( fam addr u )
+	-ROT		( fam addr u )
 	CSTRING		( fam cstring )
 	SYS_OPEN SYSCALL2 ( open (filename, flags) )
 	DUP		( fd fd )
@@ -1590,9 +1584,9 @@
 : CREATE-FILE	( addr u fam -- fd 0 (if successful) | c-addr u fam -- fd errno (if there was an error) )
 	O_CREAT OR
 	O_TRUNC OR
-	ROT		( fam addr u )
+	-ROT		( fam addr u )
 	CSTRING		( fam cstring )
-	420 ROT		( 0644 fam cstring )
+	420 -ROT	( 0644 fam cstring )
 	SYS_OPEN SYSCALL3 ( open (filename, flags|O_TRUNC|O_CREAT, 0644) )
 	DUP		( fd fd )
 	DUP 0< IF	( errno? )
@@ -1608,7 +1602,7 @@
 ;
 
 : READ-FILE	( addr u fd -- u2 0 (if successful) | addr u fd -- 0 0 (if EOF) | addr u fd -- u2 errno (if error) )
-	ROT SWAP -ROT	( u addr fd )
+	>R SWAP R>	( u addr fd )
 	SYS_READ SYSCALL3
 
 	DUP		( u2 u2 )
@@ -1629,6 +1623,145 @@
 	." ERRNO="
 	. CR
 ;
+
+(
+	ASSEMBLER CODE ----------------------------------------------------------------------
+
+	This is just the outline of a simple assembler, allowing you to write FORTH primitives
+	in assembly language.
+
+	Assembly primitives begin ': NAME' in the normal way, but are ended with ;CODE.  ;CODE
+	updates the header so that the codeword isn't DOCOL, but points instead to the assembled
+	code (in the DFA part of the word).
+
+	We provide a convenience macro NEXT (you guessed what it does).  However you don't need to
+	use it because ;CODE will put a NEXT at the end of your word.
+
+	The rest consists of some immediate words which expand into machine code appended to the
+	definition of the word.  Only a very tiny part of the i386 assembly space is covered, just
+	enough to write a few assembler primitives below.
+)
+
+HEX
+
+( Equivalent to the NEXT macro )
+: NEXT IMMEDIATE AD C, FF C, 20 C, ;
+
+: ;CODE IMMEDIATE
+	[COMPILE] NEXT		( end the word with NEXT macro )
+	ALIGN			( machine code is assembled in bytes so isn't necessarily aligned at the end )
+	LATEST @ DUP
+	HIDDEN			( unhide the word )
+	DUP >DFA SWAP >CFA !	( change the codeword to point to the data area )
+	[COMPILE] [		( go back to immediate mode )
+;
+
+( The i386 registers )
+: EAX IMMEDIATE 0 ;
+: ECX IMMEDIATE 1 ;
+: EDX IMMEDIATE 2 ;
+: EBX IMMEDIATE 3 ;
+: ESP IMMEDIATE 4 ;
+: EBP IMMEDIATE 5 ;
+: ESI IMMEDIATE 6 ;
+: EDI IMMEDIATE 7 ;
+
+( i386 stack instructions )
+: PUSH IMMEDIATE 50 + C, ;
+: POP IMMEDIATE 58 + C, ;
+
+( RDTSC instruction )
+: RDTSC IMMEDIATE 0F C, 31 C, ;
+
+DECIMAL
+
+(
+	RDTSC is an assembler primitive which reads the Pentium timestamp counter (a very fine-
+	grained counter which counts processor clock cycles).  Because the TSC is 64 bits wide
+	we have to push it onto the stack in two slots.
+)
+: RDTSC		( -- lsb msb )
+	RDTSC		( writes the result in %edx:%eax )
+	EAX PUSH	( push lsb )
+	EDX PUSH	( push msb )
+;CODE
+
+(
+	INLINE can be used to inline an assembler primitive into the current (assembler)
+	word.
+
+	For example:
+
+		: 2DROP INLINE DROP INLINE DROP ;CODE
+
+	will build an efficient assembler word 2DROP which contains the inline assembly code
+	for DROP followed by DROP (eg. two 'pop %eax' instructions in this case).
+
+	Another example.  Consider this ordinary FORTH definition:
+
+		: C@++ ( addr -- addr+1 byte ) DUP 1+ SWAP C@ ;
+
+	(it is equivalent to the C operation '*p++' where p is a pointer to char).  If we
+	notice that all of the words used to define C@++ are in fact assembler primitives,
+	then we can write a faster (but equivalent) definition like this:
+
+		: C@++ INLINE DUP INLINE 1+ INLINE SWAP INLINE C@ ;CODE
+
+	One interesting point to note is that this "concatenative" style of programming
+	allows you to write assembler words portably.  The above definition would work
+	for any CPU architecture.
+
+	There are several conditions that must be met for INLINE to be used successfully:
+
+	(1) You must be currently defining an assembler word (ie. : ... ;CODE).
+
+	(2) The word that you are inlining must be known to be an assembler word.  If you try
+	to inline a FORTH word, you'll get an error message.
+
+	(3) The assembler primitive must be position-independent code and must end with a
+	single NEXT macro.
+
+	Exercises for the reader: (a) Generalise INLINE so that it can inline FORTH words when
+	building FORTH words. (b) Further generalise INLINE so that it does something sensible
+	when you try to inline FORTH into assembler and vice versa.
+
+	The implementation of INLINE is pretty simple.  We find the word in the dictionary,
+	check it's an assembler word, then copy it into the current definition, byte by byte,
+	until we reach the NEXT macro (which is not copied).
+)
+HEX
+: =NEXT		( addr -- next? )
+	   DUP C@ AD <> IF DROP FALSE EXIT THEN
+	1+ DUP C@ FF <> IF DROP FALSE EXIT THEN
+	1+     C@ 20 <> IF      FALSE EXIT THEN
+	TRUE
+;
+DECIMAL
+
+( (INLINE) is the lowlevel inline function. )
+: (INLINE)	( cfa -- )
+	@			( remember codeword points to the code )
+	BEGIN			( copy bytes until we hit NEXT macro )
+		DUP =NEXT NOT
+	WHILE
+		DUP C@ C,
+		1+
+	REPEAT
+	DROP
+;
+
+: INLINE IMMEDIATE
+	WORD FIND		( find the word in the dictionary )
+	>CFA			( codeword )
+
+	DUP @ DOCOL = IF	( check codeword <> DOCOL (ie. not a FORTH word) )
+		." Cannot INLINE FORTH words" CR ABORT
+	THEN
+
+	(INLINE)
+;
+
+HIDE =NEXT
 
 (
 	NOTES ----------------------------------------------------------------------
