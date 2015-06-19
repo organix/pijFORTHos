@@ -150,15 +150,17 @@ cold_start:
         .set link, 0
 
 @ defword macro helps defining new FORTH words in assembly
-        .macro defword name, namelen, flags=0, label
+        .macro defword name, flags=0, label
         .section .rodata
         .align 2
         .global name_\label
 name_\label :
         .int link               @ link
         .set link,name_\label
-        .byte \flags+\namelen   @ flags + length byte
+        .byte \flags+(str_end_\label-str_\label) @ flags + length of "\name"
+str_\label :
         .ascii "\name"          @ the name
+str_end_\label :
         .align 2                @ padding to next 4 byte boundary
         .global \label
 \label :
@@ -167,15 +169,17 @@ name_\label :
         .endm
 
 @ defcode macro helps defining new native words in assembly
-        .macro defcode name, namelen, flags=0, label
+        .macro defcode name, flags=0, label
         .section .rodata
         .align 2
         .globl name_\label
 name_\label :
         .int link               @ link
         .set link,name_\label
-        .byte \flags+\namelen   @ flags + length byte
+        .byte \flags+(str_end_\label-str_\label) @ flags + length of "\name"
+str_\label :
         .ascii "\name"          @ the name
+str_end_\label :
         .align 2                @ padding to next 4 byte boundary
         .global \label
 \label :
@@ -188,14 +192,14 @@ code_\label :                   @ assembler code follows
 @ EXIT is the last codeword of a FORTH word.
 @ It restores the FIP and returns to the caller using NEXT.
 @ (See _DOCOL)
-defcode "EXIT",4,,EXIT
+defcode "EXIT",,EXIT
         POPRSP FIP
         NEXT
 
 
 @ defvar macro helps defining FORTH variables in assembly
-        .macro defvar name, namelen, flags=0, label, initial=0
-        defcode \name,\namelen,\flags,\label
+        .macro defvar name, flags=0, label, initial=0
+        defcode \name,\flags,\label
         ldr r0, =var_\name
         PUSHDSP r0
         NEXT
@@ -208,20 +212,20 @@ var_\name :
 
 @ The built-in variables are:
 @  STATE           Is the interpreter executing code (0) or compiling a word (non-zero)?
-        defvar "STATE",5,,STATE
+        defvar "STATE",,STATE
 @  HERE            Points to the next free byte of memory.  When compiling, compiled words go here.
-        defvar "HERE",4,,HERE
+        defvar "HERE",,HERE
 @  LATEST          Points to the latest (most recently defined) word in the dictionary.
-        defvar "LATEST",6,,LATEST,name_EXECUTE  @ The last word defined in assembly is EXECUTE
+        defvar "LATEST",,LATEST,name_EXECUTE  @ The last word defined in assembly is EXECUTE
 @  S0              Stores the address of the top of the parameter stack.
-        defvar "S0",2,,S0
+        defvar "S0",,S0
 @  BASE            The current base for printing and reading numbers.
-        defvar "BASE",4,,BASE,10
+        defvar "BASE",,BASE,10
 
 
 @ defconst macro helps defining FORTH constants in assembly
-        .macro defconst name, namelen, flags=0, label, value
-        defcode \name,\namelen,\flags,\label
+        .macro defconst name, flags=0, label, value
+        defcode \name,\flags,\label
         ldr r0, =\value
         PUSHDSP r0
         NEXT
@@ -229,57 +233,57 @@ var_\name :
 
 @ The built-in constants are:
 @  VERSION         Is the current version of this FORTH.
-        defconst "VERSION",7,,VERSION,JONES_VERSION
+        defconst "VERSION",,VERSION,JONES_VERSION
 @  R0              The address of the top of the return stack.
-        defconst "R0",2,,R0,return_stack_top
+        defconst "R0",,R0,return_stack_top
 @  DOCOL           Pointer to _DOCOL.
-        defconst "DOCOL",5,,DOCOL,_DOCOL
+        defconst "DOCOL",,DOCOL,_DOCOL
 @  PAD             Pointer to scratch-pad buffer.
-        defconst "PAD",3,,PAD,scratch_pad
+        defconst "PAD",,PAD,scratch_pad
 @  F_IMMED         The IMMEDIATE flag's actual value.
-        defconst "F_IMMED",7,,F_IMMED,F_IMM
+        defconst "F_IMMED",,F_IMMED,F_IMM
 @  F_HIDDEN        The HIDDEN flag's actual value.
-        defconst "F_HIDDEN",8,,F_HIDDEN,F_HID
+        defconst "F_HIDDEN",,F_HIDDEN,F_HID
 @  F_LENMASK       The length mask in the flags/len byte.
-        defconst "F_LENMASK",9,,F_LENMASK,F_LEN
+        defconst "F_LENMASK",,F_LENMASK,F_LEN
 @  FALSE           Boolean predicate False (0)
-        defcode "FALSE",5,,FALSE
+        defcode "FALSE",,FALSE
                 mov r0, #0
                 PUSHDSP r0
                 NEXT
 @  TRUE            Boolean predicate True (-1)
-        defcode "TRUE",4,,TRUE
+        defcode "TRUE",,TRUE
                 mvn r0, #0
                 PUSHDSP r0
                 NEXT
 
 
 @ DROP ( a -- ) drops the top element of the stack
-defcode "DROP",4,,DROP
+defcode "DROP",,DROP
         add DSP, DSP, #4        @ ( )
         NEXT
 
 @ DUP ( a -- a a ) duplicates the top element
-defcode "DUP",3,,DUP
+defcode "DUP",,DUP
         ldr r0, [DSP]           @ ( a ), r0 = a
         PUSHDSP r0              @ ( a a ), r0 = a
         NEXT
 
 @ SWAP ( a b -- b a ) swaps the two top elements
-defcode "SWAP",4,,SWAP
+defcode "SWAP",,SWAP
         POP2 DSP                @ ( ), r1 = a, r0 = b
         PUSHDSP r0              @ ( b ), r1 = a, r0 = b
         PUSHDSP r1              @ ( b a ), r1 = a, r0 = b
         NEXT
 
 @ OVER ( a b -- a b a ) push copy of second element on top
-defcode "OVER",4,,OVER
+defcode "OVER",,OVER
         ldr r0, [DSP, #4]       @ ( a b ), r0 = a
         PUSHDSP r0              @ ( a b a )
         NEXT
 
 @ ROT ( a b c -- b c a ) rotation
-defcode "ROT",3,,ROT
+defcode "ROT",,ROT
         POPDSP r1               @ ( a b ), r1 = c
         POPDSP r2               @ ( a ), r2 = b
         POPDSP r0               @ ( ), r0 = a
@@ -287,7 +291,7 @@ defcode "ROT",3,,ROT
         NEXT
 
 @ -ROT ( a b c -- c a b ) backwards rotation
-defcode "-ROT",4,,NROT
+defcode "-ROT",,NROT
         POP3 DSP                @ ( ), r2 = a, r1 = b, r0 = c
         PUSHDSP r0              @ ( c )
         PUSHDSP r2              @ ( c a )
@@ -295,20 +299,20 @@ defcode "-ROT",4,,NROT
         NEXT
 
 @ 2DROP ( a b -- ) drops the top two elements of the stack
-defcode "2DROP",5,,TWODROP
+defcode "2DROP",,TWODROP
         add DSP, DSP, #8        @ ( )
         NEXT
 
 @ 2DUP ( a b -- a b a b ) duplicate top two elements of stack
 @ : 2DUP OVER OVER ;
-defcode "2DUP",4,,TWODUP
+defcode "2DUP",,TWODUP
         ldmia DSP, {r0,r1}      @ ( a b ), r1 = a, r0 = b
         PUSH2 DSP               @ ( a b a b ), r1 = a, r0 = b
         NEXT
 
 @ 2SWAP ( a b c d -- c d a b ) swap top two pairs of elements of stack
 @ : 2SWAP >R -ROT R> -ROT ;
-defcode "2SWAP",5,,TWOSWAP
+defcode "2SWAP",,TWOSWAP
         POP4 DSP                @ ( ), r3 = a, r2 = b, r1 = c, r0 = d
         PUSH2 DSP               @ ( c d ), r3 = a, r2 = b, r1 = c, r0 = d
         PUSHDSP r3              @ ( c d a ), r3 = a, r2 = b, r1 = c, r0 = d
@@ -316,7 +320,7 @@ defcode "2SWAP",5,,TWOSWAP
         NEXT
 
 @ 2OVER ( a b c d -- a b c d a b ) copy second pair of stack elements
-defcode "2OVER",5,,TWOOVER
+defcode "2OVER",,TWOOVER
         ldr r0, [DSP, #8]       @ ( a b c d ), r0 = b
         ldr r1, [DSP, #12]      @ ( a b c d ), r1 = a, r0 = b
         PUSH2 DSP               @ ( a b c d a b ), r1 = a, r0 = b
@@ -324,14 +328,14 @@ defcode "2OVER",5,,TWOOVER
 
 @ NIP ( a b -- b ) drop the second element of the stack
 @ : NIP SWAP DROP ;
-defcode "NIP",3,,NIP
+defcode "NIP",,NIP
         POP2 DSP                @ ( ), r1 = a, r0 = b
         PUSHDSP r0              @ ( b ), r1 = a, r0 = b
         NEXT
 
 @ TUCK ( a b -- b a b ) push copy of top element below second
 @ : TUCK SWAP OVER ;
-defcode "TUCK",4,,TUCK
+defcode "TUCK",,TUCK
         POP2 DSP                @ ( ), r1 = a, r0 = b
         PUSHDSP r0              @ ( b ), r1 = a, r0 = b
         PUSH2 DSP               @ ( b a b ), r1 = a, r0 = b
@@ -339,119 +343,119 @@ defcode "TUCK",4,,TUCK
 
 @ PICK ( a_n ... a_0 n -- a_n ... a_0 a_n ) copy n-th stack item
 @ : PICK 1+ 4* DSP@ + @ ;
-defcode "PICK",4,,PICK
+defcode "PICK",,PICK
         POPDSP r0               @ ( a_n ... a_0 ), r0 = n
         ldr r1, [DSP,r0,LSL #2] @ ( a_n ... a_0 ), r0 = n, r1 = a_n
         PUSHDSP r1              @ ( a_n ... a_0 a_n ), r0 = n, r1 = a_n
         NEXT
 
 @ ?DUP ( 0 -- 0 | a -- a a ) duplicates if non-zero
-defcode "?DUP", 4,,QDUP
+defcode "?DUP",,QDUP
         ldr r0, [DSP]           @ r0 = a
         cmp r0, #0              @ test if a==0
         strne r0, [DSP, #-4]!   @ copy if a!=0
         NEXT                    @ ( a a | 0 )
 
 @ : 1+ ( n -- n+1 ) 1 + ;  \  increments the top element
-defcode "1+",2,,INCR
+defcode "1+",,INCR
         POPDSP r0
         add r0, r0, #1
         PUSHDSP r0
         NEXT
 
 @ : 1- ( n -- n-1 ) 1 - ;  \  decrements the top element
-defcode "1-",2,,DECR
+defcode "1-",,DECR
         POPDSP r0
         sub r0, r0, #1
         PUSHDSP r0
         NEXT
 
 @ : 2+ ( n -- n+2 ) 2 + ;  \  increments by 2 the top element
-defcode "2+",2,,INCR2
+defcode "2+",,INCR2
         POPDSP r0
         add r0, r0, #2
         PUSHDSP r0
         NEXT
 
 @ : 2- ( n -- n-2 ) 2 - ;  \ decrements by 2 the top element
-defcode "2-",2,,DECR2
+defcode "2-",,DECR2
         POPDSP r0
         sub r0, r0, #2
         PUSHDSP r0
         NEXT
 
 @ : 4+ ( n -- n+4 ) 4 + ;  \  increments by 4 the top element
-defcode "4+",2,,INCR4
+defcode "4+",,INCR4
         POPDSP r0
         add r0, r0, #4
         PUSHDSP r0
         NEXT
 
 @ : 4- ( n -- n-4 ) 4 - ;  \ decrements by 4 the top element
-defcode "4-",2,,DECR4
+defcode "4-",,DECR4
         POPDSP r0
         sub r0, r0, #4
         PUSHDSP r0
         NEXT
 
 @ + ( a b -- a+b )
-defcode "+",1,,ADD
+defcode "+",,ADD
         POP2 DSP                @ ( ), r1 = a, r0 = b
         add r0, r0, r1
         PUSHDSP r0
         NEXT
 
 @ - ( a b -- a-b )
-defcode "-",1,,SUB
+defcode "-",,SUB
         POP2 DSP                @ ( ), r1 = a, r0 = b
         sub r0, r1, r0
         PUSHDSP r0
         NEXT
 
 @ 2* ( a -- a*2 )
-defcode "2*",2,,MUL2
+defcode "2*",,MUL2
         POPDSP r0
         mov r0, r0, LSL #1
         PUSHDSP r0
         NEXT
 
 @ 2/ ( a -- a/2 )
-defcode "2/",2,,DIV2
+defcode "2/",,DIV2
         POPDSP r0
         mov r0, r0, ASR #1
         PUSHDSP r0
         NEXT
 
 @ 4* ( a -- a*4 )
-defcode "4*",2,,MUL4
+defcode "4*",,MUL4
         POPDSP r0
         mov r0, r0, LSL #2
         PUSHDSP r0
         NEXT
 
 @ 4/ ( a -- a/4 )
-defcode "4/",2,,DIV4
+defcode "4/",,DIV4
         POPDSP r0
         mov r0, r0, ASR #2
         PUSHDSP r0
         NEXT
 
 @ LSHIFT ( a b -- a<<b )
-defcode "LSHIFT",6,,LSHIFT
+defcode "LSHIFT",,LSHIFT
         POP2 DSP                @ ( ), r1 = a, r0 = b
         mov r0, r1, LSL r0
         PUSHDSP r0
         NEXT
 
 @ RSHIFT ( a b -- a>>b )
-defcode "RSHIFT",6,,RSHIFT
+defcode "RSHIFT",,RSHIFT
         POP2 DSP                @ ( ), r1 = a, r0 = b
         mov r0, r1, LSR r0
         PUSHDSP r0
         NEXT
 
 @ * ( a b -- a*b )
-defcode "*",1,,MUL
+defcode "*",,MUL
         POP2 DSP                @ ( ), r1 = a, r0 = b
         mul r2, r1, r0
         PUSHDSP r2
@@ -459,7 +463,7 @@ defcode "*",1,,MUL
 
 @ / ( n m -- q ) integer division quotient (see /MOD)
 @ : / /MOD SWAP DROP ;
-defcode "/",1,,DIV
+defcode "/",,DIV
         POPDSP  r1              @ ( n ), r1 = m
         POPDSP  r0              @ ( ), r0 = n, r1 = m
         bl _DIVMOD
@@ -468,7 +472,7 @@ defcode "/",1,,DIV
 
 @ MOD ( n m -- r ) integer division remainder (see /MOD)
 @ : MOD /MOD DROP ;
-defcode "MOD",3,,MOD
+defcode "MOD",,MOD
         POPDSP  r1              @ ( n ), r1 = m
         POPDSP  r0              @ ( ), r0 = n, r1 = m
         bl _DIVMOD
@@ -477,14 +481,14 @@ defcode "MOD",3,,MOD
 
 @ NEGATE ( n -- -n ) integer negation
 @ : NEGATE 0 SWAP - ;
-defcode "NEGATE",6,,NEGATE
+defcode "NEGATE",,NEGATE
         POPDSP r0
         rsb r0, r0, #0
         PUSHDSP r0
         NEXT
 
 @ = ( a b -- p ) where p is 1 when a and b are equal (0 otherwise)
-defcode "=",1,,EQ
+defcode "=",,EQ
         POP2 DSP                @ ( ), r1 = a, r0 = b
         cmp r1, r0
         mvneq r0, #0
@@ -493,7 +497,7 @@ defcode "=",1,,EQ
         NEXT
 
 @ <> ( a b -- p ) where p = a <> b
-defcode "<>",2,,NEQ
+defcode "<>",,NEQ
         POP2 DSP                @ ( ), r1 = a, r0 = b
         cmp r1, r0
         mvnne r0, #0
@@ -502,7 +506,7 @@ defcode "<>",2,,NEQ
         NEXT
 
 @ < ( a b -- p ) where p = a < b
-defcode "<",1,,LT
+defcode "<",,LT
         POP2 DSP                @ ( ), r1 = a, r0 = b
         cmp r1, r0
         mvnlt r0, #0
@@ -511,7 +515,7 @@ defcode "<",1,,LT
         NEXT
 
 @ > ( a b -- p ) where p = a > b
-defcode ">",1,,GT
+defcode ">",,GT
         POP2 DSP                @ ( ), r1 = a, r0 = b
         cmp r1, r0
         mvngt r0, #0
@@ -520,7 +524,7 @@ defcode ">",1,,GT
         NEXT
 
 @ <= ( a b -- p ) where p = a <= b
-defcode "<=",2,,LE
+defcode "<=",,LE
         POP2 DSP                @ ( ), r1 = a, r0 = b
         cmp r1, r0
         mvnle r0, #0
@@ -529,7 +533,7 @@ defcode "<=",2,,LE
         NEXT
 
 @ >= ( a b -- p ) where p = a >= b
-defcode ">=",2,,GE
+defcode ">=",,GE
         POP2 DSP                @ ( ), r1 = a, r0 = b
         cmp r1, r0
         mvnge r0, #0
@@ -538,7 +542,7 @@ defcode ">=",2,,GE
         NEXT
 
 @ : 0= 0 = ;
-defcode "0=",2,,ZEQ
+defcode "0=",,ZEQ
         POPDSP r1
         mov r0, #0
         cmp r1, r0
@@ -547,7 +551,7 @@ defcode "0=",2,,ZEQ
         NEXT
 
 @ : 0<> 0 <> ;
-defcode "0<>",3,,ZNEQ
+defcode "0<>",,ZNEQ
         POPDSP r1
         mov r0, #0
         cmp r1, r0
@@ -556,7 +560,7 @@ defcode "0<>",3,,ZNEQ
         NEXT
 
 @ : 0< 0 < ;
-defcode "0<",2,,ZLT
+defcode "0<",,ZLT
         POPDSP r1
         mov r0, #0
         cmp r1, r0
@@ -565,7 +569,7 @@ defcode "0<",2,,ZLT
         NEXT
 
 @ : 0> 0 > ;
-defcode "0>",2,,ZGT
+defcode "0>",,ZGT
         POPDSP r1
         mov r0, #0
         cmp r1, r0
@@ -574,7 +578,7 @@ defcode "0>",2,,ZGT
         NEXT
 
 @ : 0<= 0 <= ;
-defcode "0<=",3,,ZLE
+defcode "0<=",,ZLE
         POPDSP r1
         mov r0, #0
         cmp r1, r0
@@ -583,7 +587,7 @@ defcode "0<=",3,,ZLE
         NEXT
 
 @ : 0>= 0 >= ;
-defcode "0>=",3,,ZGE
+defcode "0>=",,ZGE
         POPDSP r1
         mov r0, #0
         cmp r1, r0
@@ -592,32 +596,32 @@ defcode "0>=",3,,ZGE
         NEXT
 
 @ : NOT 0= ;
-defcode "NOT",3,,NOT
+defcode "NOT",,NOT
         b code_ZEQ              @ same at 0=
 
 @ AND ( a b -- a&b ) bitwise and
-defcode "AND",3,,AND
+defcode "AND",,AND
         POP2 DSP                @ ( ), r1 = a, r0 = b
         and r0, r1, r0
         PUSHDSP r0
         NEXT
 
 @ OR ( a b -- a|b ) bitwise or
-defcode "OR",2,,OR
+defcode "OR",,OR
         POP2 DSP                @ ( ), r1 = a, r0 = b
         orr r0, r1, r0
         PUSHDSP r0
         NEXT
 
 @ XOR ( a b -- a^b ) bitwise xor
-defcode "XOR",3,,XOR
+defcode "XOR",,XOR
         POP2 DSP                @ ( ), r1 = a, r0 = b
         eor r0, r1, r0
         PUSHDSP r0
         NEXT
 
 @ INVERT ( a -- ~a ) bitwise not
-defcode "INVERT",6,,INVERT
+defcode "INVERT",,INVERT
         POPDSP r0
         mvn r0, r0
         PUSHDSP r0
@@ -627,26 +631,26 @@ defcode "INVERT",6,,INVERT
 @ LIT is used to compile literals in FORTH word.
 @ When LIT is executed it pushes the literal (which is the next codeword)
 @ into the stack and skips it (since the literal is not executable).
-defcode "LIT", 3,, LIT
+defcode "LIT",, LIT
         ldr r1, [FIP], #4
         PUSHDSP r1
         NEXT
 
 @ ! ( value address -- ) write value at address
-defcode "!",1,,STORE
+defcode "!",,STORE
         POP2 DSP                @ ( ), r1 = value, r0 = address
         str r1, [r0]
         NEXT
 
 @ @ ( address -- value ) reads value from address
-defcode "@",1,,FETCH
+defcode "@",,FETCH
         POPDSP r1
         ldr r0, [r1]
         PUSHDSP r0
         NEXT
 
 @ +! ( amount address -- ) add amount to value at address
-defcode "+!",2,,ADDSTORE
+defcode "+!",,ADDSTORE
         POP2 DSP                @ ( ), r1 = amount, r0 = address
         ldr r2, [r0]
         add r2, r1
@@ -654,7 +658,7 @@ defcode "+!",2,,ADDSTORE
         NEXT
 
 @ -! ( amount address -- ) subtract amount to value at address
-defcode "-!",2,,SUBSTORE
+defcode "-!",,SUBSTORE
         POP2 DSP                @ ( ), r1 = amount, r0 = address
         ldr r2, [r0]
         sub r2, r1
@@ -662,20 +666,20 @@ defcode "-!",2,,SUBSTORE
         NEXT
 
 @ C! ( c addr -- ) write byte c at addr
-defcode "C!",2,,STOREBYTE
+defcode "C!",,STOREBYTE
         POP2 DSP                @ ( ), r1 = c, r0 = addr
         strb r1, [r0]
         NEXT
 
 @ C@ ( addr -- c ) read byte from addr
-defcode "C@",2,,FETCHBYTE
+defcode "C@",,FETCHBYTE
         POPDSP r1
         ldrb r0, [r1]
         PUSHDSP r0
         NEXT
 
 @ CMOVE ( source dest length -- ) copy length bytes from source to dest
-defcode "CMOVE",5,,CMOVE
+defcode "CMOVE",,CMOVE
         POP3 DSP                @ ( ), r2 = source, r1 = dest, r0 = length
         cmp r2, r1              @ account for potential overlap
         bge 2f                  @ copy forward if s >= d, backward otherwise
@@ -700,7 +704,7 @@ defcode "CMOVE",5,,CMOVE
         NEXT
 
 @ COUNT ( addr -- addr+1 c ) extract first byte (len) of counted string
-defcode "COUNT",5,,COUNT
+defcode "COUNT",,COUNT
         POPDSP r0
         ldrb r1, [r0], #1       @ get byte and increment pointer
         PUSHDSP r0
@@ -708,71 +712,71 @@ defcode "COUNT",5,,COUNT
         NEXT
 
 @ >R ( a -- ) move the top element from the data stack to the return stack
-defcode ">R",2,,TOR
+defcode ">R",,TOR
         POPDSP r0
         PUSHRSP r0
         NEXT
 
 @ R> ( -- a ) move the top element from the return stack to the data stack
-defcode "R>",2,,FROMR
+defcode "R>",,FROMR
         POPRSP r0
         PUSHDSP r0
         NEXT
 
 @ RDROP drops the top element from the return stack
-defcode "RDROP",5,,RDROP
+defcode "RDROP",,RDROP
         add RSP,RSP,#4
         NEXT
 
 @ RSP@, RSP!, DSP@, DSP! manipulate the return and data stack pointers
 
-defcode "RSP@",4,,RSPFETCH
+defcode "RSP@",,RSPFETCH
         PUSHDSP RSP
         NEXT
 
-defcode "RSP!",4,,RSPSTORE
+defcode "RSP!",,RSPSTORE
         POPDSP RSP
         NEXT
 
-defcode "DSP@",4,,DSPFETCH
+defcode "DSP@",,DSPFETCH
         mov r0, DSP
         PUSHDSP r0
         NEXT
 
-defcode "DSP!",4,,DSPSTORE
+defcode "DSP!",,DSPSTORE
         POPDSP r0
         mov DSP, r0
         NEXT
 
 @ KEY ( -- c ) Reads a character from stdin
-defcode "KEY",3,,KEY
+defcode "KEY",,KEY
         bl getchar              @ r0 = getchar();
         PUSHDSP r0              @ push the return value on the stack
         NEXT
 
 @ EMIT ( c -- ) Writes character c to stdout
-defcode "EMIT",4,,EMIT
+defcode "EMIT",,EMIT
         POPDSP r0
         bl putchar              @ putchar(r0);
         NEXT
 
 @ CR ( -- ) print newline
 @ : CR '\n' EMIT ;
-defcode "CR",2,,CR
+defcode "CR",,CR
         mov r0, #10
         bl putchar              @ putchar('\n');
         NEXT
 
 @ SPACE ( -- ) print space
 @ : SPACE BL EMIT ;  \ print space
-defcode "SPACE",5,,SPACE
+defcode "SPACE",,SPACE
         mov r0, #32
         bl putchar              @ putchar(' ');
         NEXT
 
 @ WORD ( -- addr length ) reads next word from stdin
 @ skips spaces, control-characters and comments, limited to 32 characters
-defcode "WORD",4,,WORD
+defcode "WORD",,WORD
         bl _WORD
         PUSHDSP r0              @ address
         PUSHDSP r1              @ length
@@ -814,7 +818,7 @@ word_buffer:
 @ NUMBER ( addr length -- n e ) converts string to number
 @ n is the parsed number
 @ e is the number of unparsed characters
-defcode "NUMBER",6,,NUMBER
+defcode "NUMBER",,NUMBER
         POPDSP r1
         POPDSP r0
         bl _NUMBER
@@ -905,7 +909,7 @@ _NUMBER:
 @ FIND ( addr length -- dictionary_address )
 @ Tries to find a word in the dictionary and returns its address.
 @ If the word is not found, NULL is returned.
-defcode "FIND",4,,FIND
+defcode "FIND",,FIND
         POPDSP r1       @ length
         POPDSP r0       @ addr
         bl _FIND
@@ -953,7 +957,7 @@ _FIND:
 
 @ >CFA ( dictionary_address -- executable_address )
 @ Transformat a dictionary address into a code field address
-defcode ">CFA",4,,TCFA
+defcode ">CFA",,TCFA
         POPDSP r0
         bl _TCFA
         PUSHDSP r0
@@ -970,7 +974,7 @@ _TCFA:
 
 @ >DFA ( dictionary_address -- data_field_address )
 @ Return the address of the first data field
-defcode ">DFA",4,,TDFA
+defcode ">DFA",,TDFA
         POPDSP r0
         bl _TCFA
         add r0,r0,#4            @ DFA follows CFA
@@ -979,7 +983,7 @@ defcode ">DFA",4,,TDFA
 
 @ CREATE ( address length -- ) Creates a new dictionary entry
 @ in the data segment.
-defcode "CREATE",6,,CREATE
+defcode "CREATE",,CREATE
         POPDSP r1       @ length of the word to insert into the dictionnary
         POPDSP r0       @ address of the word to insert into the dictionnary
 
@@ -1021,7 +1025,7 @@ defcode "CREATE",6,,CREATE
         NEXT
 
 @ , ( n -- ) writes the top element from the stack at HERE
-defcode ",",1,,COMMA
+defcode ",",,COMMA
         POPDSP r0
         bl _COMMA
         NEXT
@@ -1034,14 +1038,14 @@ _COMMA:
         bx      lr
 
 @ [ ( -- ) Change interpreter state to Immediate mode
-defcode "[",1,F_IMM,LBRAC
+defcode "[",F_IMM,LBRAC
         ldr     r0, =var_STATE
         mov     r1, #0                  @ FALSE
         str     r1, [r0]
         NEXT
 
 @ ] ( -- ) Change interpreter state to Compilation mode
-defcode "]",1,,RBRAC
+defcode "]",,RBRAC
         ldr     r0, =var_STATE
         mvn     r1, #0                  @ TRUE
         str     r1, [r0]
@@ -1049,7 +1053,7 @@ defcode "]",1,,RBRAC
 
 @ : word ( -- ) Define a new FORTH word
 @ : : WORD CREATE DOCOL , LATEST @ HIDDEN ] ;
-defword ":",1,,COLON
+defword ":",,COLON
         .int WORD                       @ Get the name of the new word
         .int CREATE                     @ CREATE the dictionary entry / header
         .int DOCOL, COMMA               @ Append DOCOL (the codeword).
@@ -1058,14 +1062,14 @@ defword ":",1,,COLON
         .int EXIT                       @ Return from the function.
 
 @ : ; IMMEDIATE LIT EXIT , LATEST @ HIDDEN [ ;
-defword ";",1,F_IMM,SEMICOLON
+defword ";",F_IMM,SEMICOLON
         .int LIT, EXIT, COMMA           @ Append EXIT (so the word will return).
         .int LATEST, FETCH, HIDDEN      @ Unhide the word (hidden by COLON).
         .int LBRAC                      @ Go back to IMMEDIATE mode.
         .int EXIT                       @ Return from the function.
 
 @ IMMEDIATE ( -- ) set IMMEDIATE flag of last defined word
-defcode "IMMEDIATE",9,F_IMM,IMMEDIATE
+defcode "IMMEDIATE",F_IMM,IMMEDIATE
         ldr r0, =var_LATEST     @ address of last word defined
         ldr r0, [r0]            @ get dictionary entry
         ldrb r1, [r0, #4]!      @ get len/flag byte
@@ -1074,7 +1078,7 @@ defcode "IMMEDIATE",9,F_IMM,IMMEDIATE
         NEXT
 
 @ HIDDEN ( dictionary_address -- ) toggle HIDDEN flag of a word
-defcode "HIDDEN",6,,HIDDEN
+defcode "HIDDEN",,HIDDEN
         POPDSP  r0
         ldrb r1, [r0, #4]!      @ get len/flag byte
         eor r1, r1, #F_HID      @ toggle F_HIDDEN
@@ -1082,7 +1086,7 @@ defcode "HIDDEN",6,,HIDDEN
         NEXT
 
 @ HIDE ( -- ) hide a word, FIND fails if already hidden
-defword "HIDE",4,,HIDE
+defword "HIDE",,HIDE
         .int WORD               @ Get the word (after HIDE).
         .int FIND               @ Look up in the dictionary.
         .int HIDDEN             @ Set F_HIDDEN flag.
@@ -1090,21 +1094,21 @@ defword "HIDE",4,,HIDE
 
 @ ' ( -- ) returns the codeword address of next read word
 @ only works in compile mode. Implementation is identical to LIT.
-defcode "'",1,,TICK
+defcode "'",,TICK
         ldr r1, [FIP], #4
         PUSHDSP r1
         NEXT
 
 @ LITERAL (C: value --) (S: -- value) compile `LIT value`
 @ : LITERAL IMMEDIATE ' LIT , , ;  \ takes <word> from the stack and compiles LIT <word>
-defword "LITERAL",7,F_IMM,LITERAL
+defword "LITERAL",F_IMM,LITERAL
         .int TICK, LIT, COMMA   @ compile 'LIT'
         .int COMMA              @ compile value
         .int EXIT               @ Return.
 
 @ [COMPILE] word ( -- ) compile otherwise IMMEDIATE word
 @ : [COMPILE] IMMEDIATE WORD FIND >CFA , ;
-defword "[COMPILE]",9,F_IMM,BRKCOMPILE
+defword "[COMPILE]",F_IMM,BRKCOMPILE
         .int WORD               @ get the next word
         .int FIND               @ find it in the dictionary
         .int TCFA               @ get its codeword
@@ -1113,20 +1117,20 @@ defword "[COMPILE]",9,F_IMM,BRKCOMPILE
 
 @ RECURSE ( -- ) compile recursive call to current word
 @ : RECURSE IMMEDIATE LATEST @ >CFA , ;
-defword "RECURSE",7,F_IMM,RECURSE
+defword "RECURSE",F_IMM,RECURSE
         .int LATEST, FETCH      @ LATEST points to the word being compiled at the moment
         .int TCFA               @ get the codeword
         .int COMMA              @ compile it
         .int EXIT               @ Return.
 
 @ BRANCH ( -- ) changes FIP by offset which is found in the next codeword
-defcode "BRANCH",6,,BRANCH
+defcode "BRANCH",,BRANCH
         ldr r1, [FIP]
         add FIP, FIP, r1
         NEXT
 
 @ 0BRANCH ( p -- ) branch if the top of the stack is zero
-defcode "0BRANCH",7,,ZBRANCH
+defcode "0BRANCH",,ZBRANCH
         POPDSP r0
         cmp r0, #0              @ if the top of the stack is zero
         beq code_BRANCH         @ then branch
@@ -1135,20 +1139,20 @@ defcode "0BRANCH",7,,ZBRANCH
 
 @ IF true-part THEN ( p -- ) conditional execution
 @ : IF IMMEDIATE ' 0BRANCH , HERE @ 0 , ;
-defword "IF",2,F_IMM,IF
+defword "IF",F_IMM,IF
         .int TICK, ZBRANCH, COMMA       @ compile 0BRANCH
         .int HERE, FETCH                @ save location of the offset on the stack
         .int LIT, 0, COMMA              @ compile a dummy offset
         .int EXIT
 @ : THEN IMMEDIATE DUP HERE @ SWAP - SWAP ! ;
-defword "THEN",4,F_IMM,THEN
+defword "THEN",F_IMM,THEN
         .int DUP                        @ copy address saved on the stack
         .int HERE, FETCH, SWAP, SUB     @ calculate the offset
         .int SWAP, STORE                @ store the offset in the back-filled location
         .int EXIT
 @ IF true-part ELSE false-part THEN ( p -- ) conditional execution
 @ : ELSE IMMEDIATE ' BRANCH , HERE @ 0 , SWAP DUP HERE @ SWAP - SWAP ! ;
-defword "ELSE",4,F_IMM,ELSE
+defword "ELSE",F_IMM,ELSE
         .int TICK, BRANCH, COMMA        @ definite branch to just over the false-part
         .int HERE, FETCH                @ save location of the offset on the stack
         .int LIT, 0, COMMA              @ compile a dummy offset
@@ -1159,38 +1163,38 @@ defword "ELSE",4,F_IMM,ELSE
         .int EXIT
 @ UNLESS false-part ... ( p -- ) same as `NOT IF`
 @ : UNLESS IMMEDIATE ' NOT , [COMPILE] IF ;
-defword "UNLESS",6,F_IMM,UNLESS
+defword "UNLESS",F_IMM,UNLESS
         .int TICK, NOT, COMMA           @ compile NOT (to reverse the test)
         .int IF                         @ continue by calling the normal IF
         .int EXIT
 
 @ BEGIN loop-part p UNTIL ( -- ) post-test loop
 @ : BEGIN IMMEDIATE HERE @ ;
-defword "BEGIN",5,F_IMM,BEGIN
+defword "BEGIN",F_IMM,BEGIN
         .int HERE, FETCH                @ save location on the stack
         .int EXIT
 @ : UNTIL IMMEDIATE ' 0BRANCH , HERE @ - , ;
-defword "UNTIL",5,F_IMM,UNTIL
+defword "UNTIL",F_IMM,UNTIL
         .int TICK, ZBRANCH, COMMA       @ compile 0BRANCH
         .int HERE, FETCH, SUB           @ calculate offset saved location
         .int COMMA                      @ compile the offset here
         .int EXIT
 @ BEGIN loop-part AGAIN ( -- ) infinite loop (until EXIT)
 @ : AGAIN IMMEDIATE ' BRANCH , HERE @ - , ;
-defword "AGAIN",5,F_IMM,AGAIN
+defword "AGAIN",F_IMM,AGAIN
         .int TICK, BRANCH, COMMA        @ compile BRANCH
         .int HERE, FETCH, SUB           @ calculate the offset back
         .int COMMA                      @ compile the offset here
         .int EXIT
 @ BEGIN p WHILE loop-part REPEAT ( -- ) pre-test loop
 @ : WHILE IMMEDIATE ' 0BRANCH , HERE @ 0 , ;
-defword "WHILE",5,F_IMM,WHILE
+defword "WHILE",F_IMM,WHILE
         .int TICK, ZBRANCH, COMMA       @ compile 0BRANCH
         .int HERE, FETCH                @ save location of the offset2 on the stack
         .int LIT, 0, COMMA              @ compile a dummy offset2
         .int EXIT
 @ : REPEAT IMMEDIATE ' BRANCH , SWAP HERE @ - , DUP HERE @ SWAP - SWAP ! ;
-defword "REPEAT",6,F_IMM,REPEAT
+defword "REPEAT",F_IMM,REPEAT
         .int TICK, BRANCH, COMMA        @ compile BRANCH
         .int SWAP                       @ get the original offset (from BEGIN)
         .int HERE, FETCH, SUB, COMMA    @ and compile it after BRANCH
@@ -1202,29 +1206,29 @@ defword "REPEAT",6,F_IMM,REPEAT
 @ CASE cases... default ENDCASE ( selector -- ) select case based on selector value
 @ value OF case-body ENDOF ( -- ) execute case-body if (selector == value)
 @ : CASE IMMEDIATE 0 ;
-defword "CASE",4,F_IMM,CASE
+defword "CASE",F_IMM,CASE
         .int LIT, 0                     @ push 0 to mark the bottom of the stack
         .int EXIT
 @ : OF IMMEDIATE ' OVER , ' = , [COMPILE] IF ' DROP , ;
-defword "OF",2,F_IMM,OF
+defword "OF",F_IMM,OF
         .int TICK, OVER, COMMA          @ compile OVER
         .int TICK, EQ, COMMA            @ compile =
         .int IF                         @ compile IF
         .int TICK, DROP, COMMA          @ compile DROP
         .int EXIT
 @ : ENDOF IMMEDIATE [COMPILE] ELSE ;
-defword "ENDOF",5,F_IMM,ENDOF
+defword "ENDOF",F_IMM,ENDOF
         .int ELSE                       @ ENDOF is the same as ELSE
         .int EXIT
 @ : ENDCASE IMMEDIATE ' DROP , BEGIN ?DUP WHILE [COMPILE] THEN REPEAT ;
-defword "ENDCASE",7,F_IMM,ENDCASE
+defword "ENDCASE",F_IMM,ENDCASE
         .int TICK, DROP, COMMA          @ compile DROP
         .int QDUP, ZBRANCH, 16          @ while we're not at our zero marker
         .int THEN, BRANCH, -20          @     keep compiling THEN
         .int EXIT
 
 @ LITSTRING as LIT but for strings
-defcode "LITSTRING",9,,LITSTRING
+defcode "LITSTRING",,LITSTRING
         ldr r0, [FIP], #4       @ read length
         PUSHDSP FIP             @ push address
         PUSHDSP r0              @ push string
@@ -1235,7 +1239,7 @@ defcode "LITSTRING",9,,LITSTRING
 
 @ CONSTANT name ( value -- ) create named constant value
 @ : CONSTANT WORD CREATE DOCOL , ' LIT , , ' EXIT , ;
-defword "CONSTANT",8,,CONSTANT
+defword "CONSTANT",,CONSTANT
         .int WORD               @ get the name (the name follows CONSTANT)
         .int CREATE             @ make the dictionary entry
         .int DOCOL, COMMA       @ append _DOCOL (the codeword field of this word)
@@ -1246,20 +1250,20 @@ defword "CONSTANT",8,,CONSTANT
 
 @ ALLOT ( n -- addr ) allocate n bytes of user memory
 @ : ALLOT HERE @ SWAP HERE +! ;
-defword "ALLOT",5,,ALLOT
+defword "ALLOT",,ALLOT
         .int HERE, FETCH, SWAP  @ ( here n )
         .int HERE, ADDSTORE     @ adds n to HERE, the old value of HERE is still on the stack
         .int EXIT               @ Return.
 
 @ CELLS ( n -- m ) number of bytes for n cells
 @ : CELLS 4* ;
-defword "CELLS",5,,CELLS
+defword "CELLS",,CELLS
         .int MUL4               @ 4 bytes per cell
         .int EXIT               @ Return.
 
 @ VARIABLE name ( -- addr ) create named variable location
 @ : VARIABLE 1 CELLS ALLOT WORD CREATE DOCOL , ' LIT , , ' EXIT , ;
-defword "VARIABLE",8,,VARIABLE
+defword "VARIABLE",,VARIABLE
         .int LIT, 4, ALLOT      @ allocate 1 cell of memory, push the pointer to this memory
         .int WORD, CREATE       @ make the dictionary entry (the name follows VARIABLE)
         .int DOCOL, COMMA       @ append _DOCOL (the codeword field of this word)
@@ -1269,7 +1273,7 @@ defword "VARIABLE",8,,VARIABLE
         .int EXIT               @ Return.
 
 @ TELL ( addr length -- ) writes a string to stdout
-defcode "TELL",4,,TELL
+defcode "TELL",,TELL
         POPDSP r1               @ length
         POPDSP r0               @ address
         bl _TELL
@@ -1295,7 +1299,7 @@ _TELL:
 @ lesser than a and then subtract it and all b^(2^i) (for i from 0 to n)
 @ to a.
 @ ( a b -- r q ) where a = q * b + r
-defcode "/MOD",4,,DIVMOD
+defcode "/MOD",,DIVMOD
         POPDSP  r1                      @ Get b
         POPDSP  r0                      @ Get a
         bl _DIVMOD
@@ -1350,7 +1354,7 @@ _UFMT:                          @ Unsigned Integer Formatting
         ldmfd   sp!, {r4,pc}            @ restore registers and return
 
 @ U. ( u -- ) print unsigned number and a trailing space
-defcode "U.",2,,UDOT
+defcode "U.",,UDOT
         POPDSP  r0                      @ number from stack
         ldr     r1, =var_BASE           @ address of BASE
         ldr     r1, [r1]                @ current value of BASE
@@ -1368,7 +1372,7 @@ _UDOT:
         ldmfd   sp!, {r1,pc}            @ restore registers and return
 
 @ U.R ( u width -- ) print unsigned number, padded to width
-defcode "U.R",3,,UDOTR
+defcode "U.R",,UDOTR
         ldr     r0, [DSP, #4]           @ number from stack
         ldr     r1, =var_BASE           @ address of BASE
         ldr     r1, [r1]                @ current value of BASE
@@ -1395,7 +1399,7 @@ _DFMT:                          @ Signed Integer Formatting
         ldmfd   sp!, {pc}               @ restore registers and return
 
 @ . ( n -- ) print signed number and a trailing space
-defcode ".",1,,DOT
+defcode ".",,DOT
         POPDSP  r0                      @ number from stack
         ldr     r1, =var_BASE           @ address of BASE
         ldr     r1, [r1]                @ current value of BASE
@@ -1413,7 +1417,7 @@ _DOT:
         ldmfd   sp!, {r1,pc}            @ restore registers and return
 
 @ .R ( n width -- ) print signed number, padded to width
-defcode ".R",2,,DOTR
+defcode ".R",,DOTR
         ldr     r0, [DSP, #4]           @ number from stack
         ldr     r1, =var_BASE           @ address of BASE
         ldr     r1, [r1]                @ current value of BASE
@@ -1437,14 +1441,14 @@ _DOTR:                          @ Pad to field width
 
 @ ? ( addr -- ) fetch and print signed number at addr
 @ : @ . ;
-defword "?",1,,QUESTION
+defword "?",,QUESTION
         .int FETCH
         .int DOT
         .int EXIT
 
 @ DEPTH ( -- n ) the number of items on the stack
 @ : DEPTH DSP@ S0 @ SWAP - 4 / ;
-defcode "DEPTH",5,,DEPTH
+defcode "DEPTH",,DEPTH
         ldr     r0, =var_S0             @ address of stack origin
         ldr     r0, [r0]                @ stack origin value
         sub     r0, r0, DSP             @ number of bytes on stack
@@ -1453,7 +1457,7 @@ defcode "DEPTH",5,,DEPTH
         NEXT
 
 @ .S ( -- ) print the contents of the stack (non-destructive)
-defcode ".S",2,,DOTS
+defcode ".S",,DOTS
         mov     r0, DSP                 @ grab original stack top
         stmfd   sp!, {r4-r5}            @ save in-use registers (on the stack!)
         mov     r4, r0                  @ remember original top
@@ -1481,7 +1485,7 @@ defcode ".S",2,,DOTS
 
 
 @ Alternative to DIVMOD: signed implementation using Euclidean division.
-defcode "S/MOD",5,,SDIVMOD
+defcode "S/MOD",,SDIVMOD
         POPDSP r2                       @ Denominator
         POPDSP r1                       @ Numerator
         bl _SDIVMOD
@@ -1554,7 +1558,7 @@ errdiv0: .ascii "Division by 0!\n"
 errdiv0end:
 
 @ QUIT ( -- ) the first word to be executed
-defword "QUIT", 4,, QUIT
+defword "QUIT",, QUIT
         .int R0, RSPSTORE               @ Clear return stack
         .int S0, FETCH, DSPSTORE        @ Clear data stack
         .int INTERPRET                  @ Interpret a word
@@ -1563,7 +1567,7 @@ defword "QUIT", 4,, QUIT
 @ INTERPRET, reads a word from stdin and executes or compiles it.
 @ No need to backup callee save registers here,
 @ since we are the top level routine!
-defcode "INTERPRET",9,,INTERPRET
+defcode "INTERPRET",,INTERPRET
         ldr r12, =var_S0                @ address of stack origin
         ldr r12, [r12]                  @ stack origin value
         cmp r12, DSP                    @ check stack pointer against origin
@@ -1661,7 +1665,7 @@ errsfx:
 errsfxend:
 
 @ CHAR ( -- c ) ASCII code from first character of following word
-defcode "CHAR",4,,CHAR
+defcode "CHAR",,CHAR
         bl _WORD
         ldrb r1, [r0]
         PUSHDSP r1
@@ -1669,7 +1673,7 @@ defcode "CHAR",4,,CHAR
 
 @ DECIMAL ( -- ) set number conversion BASE to 10
 @ : DECIMAL ( -- ) 10 BASE ! ;
-defcode "DECIMAL", 7,, DECIMAL
+defcode "DECIMAL",, DECIMAL
         mov     r0, #10
         ldr     r1, =var_BASE
         str     r0, [r1]
@@ -1677,7 +1681,7 @@ defcode "DECIMAL", 7,, DECIMAL
 
 @ HEX ( -- ) set number conversion BASE to 16
 @ : HEX ( -- ) 16 BASE ! ;
-defcode "HEX", 3,, HEX
+defcode "HEX",, HEX
         mov     r0, #16
         ldr     r1, =var_BASE
         str     r0, [r1]
@@ -1685,7 +1689,7 @@ defcode "HEX", 3,, HEX
 
 @ 10# value ( -- n ) interpret decimal literal value w/o changing BASE
 @ : 10# BASE @ 10 BASE ! WORD NUMBER DROP SWAP BASE ! ;
-defword "10#",3,,DECNUMBER
+defword "10#",,DECNUMBER
         .int BASE, FETCH
         .int LIT, 10, BASE, STORE
         .int WORD, NUMBER
@@ -1695,7 +1699,7 @@ defword "10#",3,,DECNUMBER
 
 @ 16# value ( -- n ) interpret hexadecimal literal value w/o changing BASE
 @ : 16# BASE @ 16 BASE ! WORD NUMBER DROP SWAP BASE ! ;
-defword "16#",3,,HEXNUMBER
+defword "16#",,HEXNUMBER
         .int BASE, FETCH
         .int LIT, 16, BASE, STORE
         .int WORD, NUMBER
@@ -1704,7 +1708,7 @@ defword "16#",3,,HEXNUMBER
         .int EXIT
 
 @ UPLOAD ( -- addr len ) XMODEM file upload to memory
-defcode "UPLOAD",6,,UPLOAD
+defcode "UPLOAD",,UPLOAD
         ldr r0, =0x10000        @ Upload buffer address
         ldr r1, =0x7F00         @ Upload limit (32k - 256) bytes
         PUSHDSP r0              @ Push buffer address on the stack
@@ -1713,14 +1717,14 @@ defcode "UPLOAD",6,,UPLOAD
         NEXT
 
 @ DUMP ( addr len -- ) Pretty-printed memory dump
-defcode "DUMP",4,,DUMP
+defcode "DUMP",,DUMP
         POPDSP r1
         POPDSP r0
         bl hexdump              @ hexdump(r0, r1);
         NEXT
 
 @ BOOT ( addr len -- ) Boot from memory image (see UPLOAD)
-defcode "BOOT",4,,BOOT
+defcode "BOOT",,BOOT
         POP2 DSP                @ ( ), r1 = addr, r0 = len
         cmp r0, #0              @ len = 0 on upload failure
         bxgt r1                 @ jump to boot address if len > 0
@@ -1734,13 +1738,13 @@ errboot: .ascii "Bad image!\n"
 errbootend:
 
 @ MONITOR ( -- ) Enter bootstrap monitor
-defcode "MONITOR",7,,MONITOR
+defcode "MONITOR",,MONITOR
         bl monitor              @ monitor();
         NEXT
 
 @ EXECUTE ( xt -- ) jump to the address on the stack
 @-- WARNING! THIS MUST BE THE LAST WORD DEFINED IN ASSEMBLY (see LATEST) --@
-defcode "EXECUTE",7,,EXECUTE
+defcode "EXECUTE",,EXECUTE
         POPDSP r0
         ldr r1, [r0]
         bx r1
