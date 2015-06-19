@@ -1223,8 +1223,8 @@ defword "ENDCASE",7,F_IMM,ENDCASE
         .int THEN, BRANCH, -20          @     keep compiling THEN
         .int EXIT
 
-@ LITS as LIT but for strings
-defcode "LITS",4,,LITS
+@ LITSTRING as LIT but for strings
+defcode "LITSTRING",9,,LITSTRING
         ldr r0, [FIP], #4       @ read length
         PUSHDSP FIP             @ push address
         PUSHDSP r0              @ push string

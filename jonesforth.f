@@ -20,7 +20,7 @@
 : C, HERE @ C! 1 HERE +! ;
 : S" IMMEDIATE ( -- addr len )
 	STATE @ IF
-		' LITS , HERE @ 0 ,
+		' LITSTRING , HERE @ 0 ,
 		BEGIN KEY DUP '"'
                 <> WHILE C, REPEAT
 		DROP DUP HERE @ SWAP - 4- SWAP ! ALIGN
@@ -62,7 +62,7 @@
 	>DFA BEGIN 2DUP
         > WHILE DUP @ CASE
 		' LIT OF 4 + DUP @ . ENDOF
-		' LITS OF [ CHAR S ] LITERAL EMIT '"' EMIT SPACE
+		' LITSTRING OF [ CHAR S ] LITERAL EMIT '"' EMIT SPACE
 			4 + DUP @ SWAP 4 + SWAP 2DUP TELL '"' EMIT SPACE + ALIGNED 4 -
 		ENDOF
 		' 0BRANCH OF ." 0BRANCH ( " 4 + DUP @ . ." ) " ENDOF

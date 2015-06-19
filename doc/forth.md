@@ -182,7 +182,7 @@ so you can see related words together.
 | Word | Stack | Description |
 |------|-------|-------------|
 | `LIT word` | ( -- ) | compile literal in FORTH word |
-| `LITS addr len` | ( -- ) | compile literal string in FORTH word |
+| `LITSTRING addr len` | ( -- ) | compile literal string in FORTH word |
 | `FIND` | ( addr len -- entry &#124; 0 ) | search dictionary for entry matching string |
 | `>CFA` | ( entry -- xt ) | get code field address from dictionary entry |
 | `>DFA` | ( entry -- addr ) | get data field address from dictionary entry |
