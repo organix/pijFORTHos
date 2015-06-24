@@ -126,9 +126,14 @@ _DOCOL:
 @   3. begins executing the routine pointed to
 @      by the CFA, with the CFA in r0
 _NEXT:
-        ldr r0, [FIP], #4
-        ldr r1, [r0]
-        bx r1
+@ This is done like so that ASMNEXT doesn't need to
+@ be kept in sync with _NEXT definition.
+	.macro NEXT_BODY, wrap_insn:vararg=
+	\wrap_insn ldr r0, [FIP], #4
+	\wrap_insn ldr r1, [r0]
+	\wrap_insn bx  r1
+	.endm
+	NEXT_BODY
 
 @ cold_start is used to bootstrap the interpreter, 
 @ the first word executed is QUIT
@@ -1741,6 +1746,32 @@ errbootend:
 defcode "MONITOR",,MONITOR
         bl monitor              @ monitor();
         NEXT
+
+@
+@ $NEXT ( -- ) emits the _NEXT body at HERE, to be used
+@ in ;CODE or ;CODE-defined words.
+@
+defword "$NEXT",F_IMM,ASMNEXT
+	.macro COMPILE_INSN, insn:vararg
+	.int LIT
+	\insn
+	.int COMMA
+	.endm
+	NEXT_BODY COMPILE_INSN
+	.int EXIT
+	.purgem COMPILE_INSN
+
+@
+@ Finishes a machine code colon definition in Forth, as
+@ really basic assembler.
+@
+defword ";CODE",F_IMM,SEMICODE
+	.int ASMNEXT                      @ end the word with NEXT macro
+	.int LATEST, FETCH, DUP           @ LATEST points to the compiled word
+	.int HIDDEN                       @ unhide the compiled word
+	.int DUP, TDFA, SWAP, TCFA, STORE @ set codeword to data instead of DOCOL
+	.int LBRAC                        @ just like ";" exit compile mode
+	.int EXIT
 
 @ EXECUTE ( xt -- ) jump to the address on the stack
 @-- WARNING! THIS MUST BE THE LAST WORD DEFINED IN ASSEMBLY (see LATEST) --@

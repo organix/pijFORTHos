@@ -192,6 +192,8 @@ so you can see related words together.
 | `]` | ( -- ) | change interpreter state to Compilation mode |
 | `: name` | ( -- ) | define (compile) a new FORTH word |
 | `;` | ( -- ) | end FORTH word definition |
+| `;CODE` | ( -- ) end FORTH machine code word definition |
+| `$NEXT` | ( -- ) emit machine code to run the next word |
 | `IMMEDIATE` | ( -- ) | set IMMEDIATE flag of last defined word |
 | `HIDDEN` | ( entry -- ) | toggle HIDDEN flag of a word |
 | `HIDE word` | ( -- ) | hide definition of following word |
