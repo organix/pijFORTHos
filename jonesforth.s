@@ -1749,7 +1749,7 @@ defcode "MONITOR",,MONITOR
 
 @
 @ $NEXT ( -- ) emits the _NEXT body at HERE, to be used
-@ in ;CODE or ;CODE-defined words.
+@ in CODE or ;CODE-defined words.
 @
 defword "$NEXT",F_IMM,ASMNEXT
 	.macro COMPILE_INSN, insn:vararg
@@ -1760,18 +1760,6 @@ defword "$NEXT",F_IMM,ASMNEXT
 	NEXT_BODY COMPILE_INSN
 	.int EXIT
 	.purgem COMPILE_INSN
-
-@
-@ Finishes a machine code colon definition in Forth, as
-@ really basic assembler.
-@
-defword ";CODE",F_IMM,SEMICODE
-	.int ASMNEXT                      @ end the word with NEXT macro
-	.int LATEST, FETCH, DUP           @ LATEST points to the compiled word
-	.int HIDDEN                       @ unhide the compiled word
-	.int DUP, TDFA, SWAP, TCFA, STORE @ set codeword to data instead of DOCOL
-	.int LBRAC                        @ just like ";" exit compile mode
-	.int EXIT
 
 @ EXECUTE ( xt -- ) jump to the address on the stack
 @-- WARNING! THIS MUST BE THE LAST WORD DEFINED IN ASSEMBLY (see LATEST) --@
