@@ -281,7 +281,8 @@ The following words are defined in `jonesforth.f`
 | `VALUE name` | ( n -- ) | create named value initialized to n |
 | `TO name` | ( n -- ) | set named value to n |
 | `+TO name` | ( d -- ) | add d to named value |
-| `DICT word` | ( -- 0 &#124; entry ) | dictionary entry for word, 0 if not found |
+| `DICT word` | ( -- word_addr word_len 0 &#124; entry ) | dictionary entry for word, 0 and word string value not found |
+| `DICT-CHECKED word` | ( -- entry ) | dictionary entry for word, ABORT if not found |
 | `ID.` | ( entry -- ) | print word/name associated with dictionary entry |
 | `?HIDDEN` | ( entry -- p ) | get HIDDEN flag from dictionary entry |
 | `?IMMEDIATE` | ( entry -- p ) | get IMMEDIATE flag from dictionary entry |
