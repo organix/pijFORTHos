@@ -1747,18 +1747,56 @@ defcode "MONITOR",,MONITOR
         bl monitor              @ monitor();
         NEXT
 
-@
-@ $NEXT ( -- ) emits the _NEXT body at HERE, to be used
-@ in CODE or ;CODE-defined words.
-@
-defword "$NEXT",F_IMM,ASMNEXT
 	.macro COMPILE_INSN, insn:vararg
 	.int LIT
 	\insn
 	.int COMMA
 	.endm
+
+@
+@ $NEXT ( -- ) emits the _NEXT body at HERE, to be used
+@ in CODE or ;CODE-defined words.
+@
+defword "$NEXT",F_IMM,ASMNEXT
 	NEXT_BODY COMPILE_INSN
 	.int EXIT
+
+@
+@ A CREATE...DOES> word is basically a special CREATE...;CODE
+@ word, where the forth words follow $DODOES. $DODOES thus
+@ adjusts FIP to point right past $DODOES and does NEXT.
+@
+@ You can think of this as a special DOCOL that sets FIP to a
+@ certain offset into the CREATE...DOES> word's DFA. The offset
+@ corresponds to the words following the instructions emitted
+@ by $DODOES. Those instructions do an absolute branch to
+@ to _DODOES, hence the words to execute are at LR + 4.
+@
+@ - Just like DOCOL, we enter with CFA in r0.
+@ - Just like DOCOL, we need to push (old) FIP for EXIT to pop.
+@ - The Forth words expect DFA (i.e. CFA + 4) on stack.
+@
+_DODOES:
+        PUSHRSP FIP
+	mov FIP, lr
+	add FIP, FIP, #4
+	add r0, r0, #4
+	PUSHDSP r0
+	NEXT
+
+	.macro DODOES_BODY, wrap_insn:vararg=
+1:	\wrap_insn ldr r12, . + ((3f-1b)/((2f-1b)/(4)))
+2:	\wrap_insn blx r12
+3:      \wrap_insn .long _DODOES
+	.endm
+
+@
+@ $DODOES ( -- ) emits the machine words used by DOES>.
+@
+defword "$DODOES",F_IMM,ASMDODOES
+	DODOES_BODY COMPILE_INSN
+	.int EXIT
+
 	.purgem COMPILE_INSN
 
 @ EXECUTE ( xt -- ) jump to the address on the stack
