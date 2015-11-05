@@ -15,7 +15,7 @@ all: kernel.img
 start.o: start.s
 	$(AS) start.s -o start.o
 
-jonesforth.o: ../jonesforth.s
+jonesforth.o: ../jonesforth-arm.s
 	$(AS) -o $@ $<
 
 kernel.img: loadmap $(KOBJS)
