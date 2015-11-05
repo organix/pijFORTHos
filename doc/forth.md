@@ -196,6 +196,7 @@ so you can see related words together.
 | `;CODE` | ( -- ) | start the native code part of a CREATEd defining word |
 | `(END-CODE)` | ( -- ) | end FORTH native code word definition |
 | `END-CODE` | ( -- ) | append $NEXT and end FORTH native code word definition |
+| `DOES>` | ( -- ) | start the FORTH part of a CREATEd defining word |
 | `$NEXT` | ( -- ) | emit native code to run the next word |
 | `IMMEDIATE` | ( -- ) | set IMMEDIATE flag of last defined word |
 | `HIDDEN` | ( entry -- ) | toggle HIDDEN flag of a word |
