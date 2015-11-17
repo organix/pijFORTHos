@@ -15,11 +15,8 @@ all: kernel.img
 start.o: start.s
 	$(AS) start.s -o start.o
 
-jonesforth.o: jonesforth.s
-	$(AS) jonesforth.s -o jonesforth.o
-
-#raspberry.o: raspberry.c
-#	$(CC) -c raspberry.c -o raspberry.o
+jonesforth.o: ../jonesforth-arm.s
+	$(AS) -o $@ $<
 
 kernel.img: loadmap $(KOBJS)
 	$(LD) $(KOBJS) -T loadmap -o pijFORTHos.elf
