@@ -17,7 +17,7 @@ Firmware files to make bootable images are maintained at <https://github.com/ras
 See the `/firmware/` directory for local copies used in the build process.
 
 
-## What is this ?
+## What is this?
 
 _pijFORTHos_ is a bare-metal FORTH interpreter for the Raspberry Pi.
 It follows the general strategy given by David Welch's
@@ -25,19 +25,19 @@ It follows the general strategy given by David Welch's
 A simple [bootloader](/doc/bootload.md#bootloader) is built in,
 supporting XMODEM uploads of new bare-metal kernel images.
 
-The interpreter uses the RPi serial console (115200 baud, 8 data bits, no parity, 1 stop bit).
-If you have _pijFORTHos_ on an SD card in the RPi,
-you can connect it to another machine (even another RPi)
+The interpreter uses the Raspberry Pi serial console (115200 baud, 8 data bits, no parity, 1 stop bit).
+If you have _pijFORTHos_ on an SD card in the Raspberry Pi,
+you can connect it to another machine (even another Raspberry Pi)
 using a [USB-to-Serial cable](http://www.adafruit.com/products/954).
-When the RPi is powered on (I provide power through the cable),
+When the Raspberry Pi is powered on (I provide power through the cable),
 a terminal program on the host machine allows access to the FORTH console.
 
 
 ## Build and run instructions
 
-_**NOTE**: HEAD is in active development, for a stable version the latest release is recommended._
+_**NOTE**: HEAD is in active development. For a stable version the latest release is recommended._
 
-If you are building on the RPi, just type:
+If you are building on the Raspberry Pi, just type:
 
     $ make clean all
 
@@ -62,7 +62,7 @@ The end state for the SD card is to have a FAT32 filesystem on it with the follo
     start.elf
     kernel.img
 
-Put the prepared SD card into the RPi,
+Put the prepared SD card into the Raspberry Pi,
 connect the USB-to-Serial cable
 (see [RPi Serial Connection](http://elinux.org/RPi_Serial_Connection) for more details),
 and power-up to the console.
@@ -85,7 +85,7 @@ The console will be waiting for an input, press `<ENTER>`. You should then see:
     pijFORTHos <version> sp=0x00008000
 
 
-## Where to go from HERE ?
+## Where to go from HERE?
 
 With FORTH REPL running, try typing:
 
